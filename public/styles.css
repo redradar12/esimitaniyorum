@@ -595,14 +595,60 @@ input[type="text"]:focus {
 
 .setup-progress {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.setup-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.setup-step {
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--text);
+}
+
+.setup-left {
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: var(--muted);
 }
 
 .setup-progress .dots {
   display: flex;
   gap: 6px;
-  flex: 1;
+  width: 100%;
+}
+
+.saved-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: rgba(99, 226, 192, 0.08);
+  border: 1px solid rgba(99, 226, 192, 0.22);
+  font-size: 0.76rem;
+  color: var(--mint);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.saved-note .sn-label {
+  flex: 0 0 auto;
+}
+
+.saved-note b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  font-weight: 700;
 }
 
 .dot {
@@ -626,9 +672,7 @@ input[type="text"]:focus {
   color: var(--muted);
   font-weight: 700;
   white-space: nowrap;
-}
-
-.cat-row {
+}.cat-row {
   display: flex;
   gap: 8px;
   overflow-x: auto;

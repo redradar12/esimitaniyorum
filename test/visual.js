@@ -138,6 +138,7 @@ async function waitState(page, check, label) {
     console.log('\nSorular');
     await fillSetup(ayse, A_QUESTIONS);
     await waitState(ayse, "app.state && app.state.me.ready === true", 'Ayşe hazır');
+    await sleep(1300);
     await shot(ayse, '05-sorular-hazir');
 
     await fillSetup(ahmet, B_QUESTIONS);

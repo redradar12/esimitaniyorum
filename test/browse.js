@@ -96,6 +96,29 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     check(initial.suggestions.length === 3, '3 öneri gösteriliyor');
     await a.screenshot({ path: path.join(OUT, '18-soru-onerileri.png') });
 
+    console.log('\nSoru kaydetme geçişi');
+    await a.type('#qText', 'Test sorusu 1');
+    await a.type('#qAnswer', 'Test cevabı');
+    await a.click('[data-action="nextStep"]');
+    await sleep(300);
+    const saveTrans = await a.evaluate(() => ({
+      open: !document.getElementById('transition').hidden,
+      title: document.getElementById('transTitle').textContent,
+      stepLabel: document.querySelector('.setup-step')?.textContent,
+      saved: document.querySelector('.saved-note')?.textContent,
+      btn: document.querySelector('[data-action="nextStep"]')?.textContent.trim(),
+    }));
+    check(saveTrans.open, 'Soru kaydedilince geçiş kartı açıldı');
+    check(saveTrans.title.includes('1. soru kaydedildi'), 'Geçişte "1. soru kaydedildi" yazıyor', saveTrans.title);
+    check(saveTrans.stepLabel.includes('2 / 5'), 'Üstte "Soru 2 / 5" yazıyor', saveTrans.stepLabel);
+    check(saveTrans.saved.includes('Test sorusu 1'), 'Kaydedilen soru özeti görünüyor', saveTrans.saved);
+    check(saveTrans.btn.includes('3. soruya geç'), 'Buton "3. soruya geç" diyor', saveTrans.btn);
+    await a.screenshot({ path: path.join(OUT, '20-soru-kaydedildi.png') });
+    await sleep(1100);
+    const transClosed = await a.evaluate(() => document.getElementById('transition').hidden);
+    check(transClosed, 'Geçiş kartı kendiliğinden kapandı');
+    await a.screenshot({ path: path.join(OUT, '21-soru-2.png') });
+
     console.log('\nTüm sorular listesi');
     await a.click('[data-action="browse"]');
     await sleep(350);
@@ -157,7 +180,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     }));
     check(auto.texts.every((t) => t && t.length > 3), '5 soru dolduruldu');
     check(new Set(auto.texts).size === 5, '5 soru birbirinden farklı');
-    check(auto.answers.every((x) => x === ''), 'Cevaplar boş bırakıldı');
+    check(
+      auto.answers[0] === 'Test cevabı' && auto.answers.slice(1).every((x) => x === ''),
+      'Var olan cevap korunuyor, yeni soruların cevabı boş'
+    );
     check(auto.step === 0, 'İlk soruya dönüldü');
     check(
       auto.suggestions.every((q) => !auto.texts.includes(q)),

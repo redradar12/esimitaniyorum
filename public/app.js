@@ -262,7 +262,7 @@ function route() {
   const s = app.state;
   if (!s) return;
 
-  if (s.phase !== 'play') {
+  if (!['play', 'setup'].includes(s.phase)) {
     $('transition').hidden = true;
   }
 
@@ -429,6 +429,12 @@ function renderSetup() {
   const suggestions = suggestionsFor(item.category, 3, [...chosenElsewhere, item.text]);
   const sourceCount = questionPool(item.category).length;
   const isLast = app.setup.step === 4;
+  const stepNo = app.setup.step + 1;
+  const remaining = 5 - stepNo;
+  const previousItem = app.setup.step > 0 ? app.setup.items[app.setup.step - 1] : null;
+  const nextLabel = isLast
+    ? 'Soruları gönder 💌'
+    : `Kaydet ve ${stepNo + 1}. soruya geç →`;
 
   $('setupBody').innerHTML = `
     <div class="players-strip" id="setupPlayers">${setupPlayersHtml(s)}</div>
@@ -442,6 +448,10 @@ function renderSetup() {
     </div>
 
     <div class="setup-progress">
+      <div class="setup-progress-head">
+        <span class="setup-step">Soru ${stepNo} / 5</span>
+        <span class="setup-left">${remaining > 0 ? `${remaining} soru kaldı` : 'Son soru'}</span>
+      </div>
       <div class="dots">
         ${app.setup.items
           .map(
@@ -452,11 +462,16 @@ function renderSetup() {
           )
           .join('')}
       </div>
-      <span class="setup-count">${app.setup.step + 1}/5</span>
     </div>
 
+    ${
+      previousItem
+        ? `<div class="saved-note"><span>✅</span> <span class="sn-label">${stepNo - 1}. soru kaydedildi:</span> <b>“${esc(previousItem.text)}”</b></div>`
+        : ''
+    }
+
     <div class="card">
-      <div class="q-label"><span>Kendinle ilgili</span><b>${app.setup.step + 1}</b></div>
+      <div class="q-label"><span>Kendinle ilgili</span><b>${stepNo}</b></div>
 
       <div class="cat-row">
         ${CATEGORIES.map(
@@ -495,7 +510,7 @@ function renderSetup() {
       <div class="btn-row">
         <button type="button" class="btn" data-action="prevStep" ${app.setup.step === 0 ? 'disabled' : ''}>Geri</button>
         <button type="button" class="btn primary" data-action="${isLast ? 'submitQuestions' : 'nextStep'}">
-          ${isLast ? 'Soruları gönder 💌' : 'Kaydet ve devam →'}
+          ${nextLabel}
         </button>
       </div>
     </div>
@@ -612,9 +627,11 @@ function nextStep() {
   }
   item.text = item.text.trim();
   item.answer = item.answer.trim();
+  const savedNumber = app.setup.step + 1;
   app.setup.step = Math.min(4, app.setup.step + 1);
   app.setupKey = '';
   renderSetup();
+  showSetupTransition(savedNumber);
 }
 
 function prevStep() {
@@ -752,6 +769,18 @@ function showQuestionTransition(isFirst, previousNumber, question) {
   app.transitionTimer = setTimeout(() => {
     box.hidden = true;
   }, 1500);
+}
+
+function showSetupTransition(savedNumber) {
+  const box = $('transition');
+  $('transEmoji').textContent = '✅';
+  $('transTitle').textContent = `${savedNumber}. soru kaydedildi!`;
+  $('transSub').textContent = `Şimdi ${savedNumber + 1}. soru — kendinle ilgili yeni bir soru yaz`;
+  box.hidden = false;
+  clearTimeout(app.transitionTimer);
+  app.transitionTimer = setTimeout(() => {
+    box.hidden = true;
+  }, 1200);
 }
 
 function renderPlay() {
