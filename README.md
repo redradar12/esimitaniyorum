@@ -2,7 +2,7 @@
 
 Sevgilinle / eşinle **iki ayrı telefondan**, aynı anda oynanan bir "beni ne kadar tanıyorsun?" oyunu.
 
-Her oyuncu kendisi hakkında **5 soru ve cevabını** yazar. Sırayla eşinin sorularına cevap verirsin, puanlar hesaplanır, tur biter ve **yeni 5 soruya** geçilir. Soru bulamazsan uygulama hazır soru bankasından otomatik soru seçer.
+Her oyuncu kendisi hakkında **5 soru ve cevabını** yazar. Sırayla eşinin sorularına cevap verirsin, puanlar hesaplanır, tur biter ve **yeni 5 soruya** geçilir. Soru bulamazsan **10 kategorideki 200+ hazır sorudan** otomatik seçilir.
 
 Arayüz Türkçe, mobil öncelikli ve koyu romantik temalı. Kurulum gerektirmeyen vanilla JavaScript + Node.js/Socket.IO ile yazıldı.
 
@@ -76,7 +76,8 @@ esimitanıyorum/
 ├─ public/
 │  ├─ index.html          # Ekranlar ve modal
 │  ├─ styles.css          # Mobil öncelikli tema
-│  ├─ app.js              # İstemci mantığı, soru bankası, ekran çizimi
+│  ├─ app.js              # İstemci mantığı ve ekran çizimi
+│  ├─ questions.js        # 10 kategori, 203 hazır soru
 │  ├─ manifest.webmanifest
 │  └─ icon.svg
 ├─ test/
