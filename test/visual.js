@@ -144,6 +144,9 @@ async function waitState(page, check, label) {
     await waitState(ahmet, "app.state && app.state.phase === 'play'", 'oyun başladı');
     await waitState(ayse, "app.state && app.state.phase === 'play'", 'oyun A');
 
+    await shot(ayse, '06a-soru-gecisi', false);
+    await sleep(1600);
+
     await shot(ayse, '06-oyun-soru-sahibi');
     await shot(ahmet, '07-oyun-tahmin');
 
@@ -158,6 +161,7 @@ async function waitState(page, check, label) {
     await ahmet.click('[data-action="continueReveal"]');
     await ayse.click('[data-action="continueReveal"]');
     await waitState(ahmet, "app.state.phase === 'play' && app.state.question.number === 2", 'soru 2');
+    await sleep(1700);
 
     console.log('\nYanlış cevap');
     await ayse.type('#guessInput', 'bilmiyorum');

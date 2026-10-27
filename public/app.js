@@ -164,6 +164,8 @@ const app = {
   lastGuessSentAt: 0,
   usedQuestions: new Set(),
   listCategory: 'karisik',
+  prevState: null,
+  transitionTimer: null,
 };
 
 let currentScreen = 'home';
@@ -184,6 +186,9 @@ function goHome() {
   app.playKey = '';
   app.submitting = false;
   app.usedQuestions = new Set();
+  app.prevState = null;
+  clearTimeout(app.transitionTimer);
+  $('transition').hidden = true;
   $('pausedOverlay').hidden = true;
   $('listModal').hidden = true;
   showScreen('home');
@@ -220,6 +225,7 @@ socket.on('state', (state) => {
   if (state && typeof state.serverTime === 'number') {
     app.skew = state.serverTime - Date.now();
   }
+  app.prevState = app.state;
   app.state = state;
   saveSession(state.code, state.me.id);
   route();
@@ -255,6 +261,10 @@ socket.on('error_msg', ({ code, message }) => {
 function route() {
   const s = app.state;
   if (!s) return;
+
+  if (s.phase !== 'play') {
+    $('transition').hidden = true;
+  }
 
   if (s.phase === 'lobby') {
     showScreen('lobby');
@@ -730,13 +740,27 @@ function scorebarHtml(s) {
   `;
 }
 
+function showQuestionTransition(isFirst, previousNumber, question) {
+  const box = $('transition');
+  $('transEmoji').textContent = isFirst ? '🎯' : '✅';
+  $('transTitle').textContent = isFirst ? 'Oyun başlıyor!' : `${previousNumber}. soru tamam!`;
+  $('transSub').textContent = isFirst
+    ? `İlk soru — ${genitive(question.ownerName)} sorusu`
+    : `Şimdi ${question.number}. soru — ${genitive(question.ownerName)} sorusu`;
+  box.hidden = false;
+  clearTimeout(app.transitionTimer);
+  app.transitionTimer = setTimeout(() => {
+    box.hidden = true;
+  }, 1500);
+}
+
 function renderPlay() {
   const s = app.state;
   const q = s.question;
   if (!q) return;
 
   $('playTitle').textContent = `Tur ${s.round}`;
-  $('playCounter').textContent = `${q.number}/${q.total}`;
+  $('playCounter').textContent = `Soru ${q.number}/${q.total}`;
 
   const key = `${s.round}:${q.number}:play`;
   if (app.playKey === key) {
@@ -748,6 +772,20 @@ function renderPlay() {
   }
   app.playKey = key;
   app.partnerTyping = false;
+
+  const previous = app.prevState;
+  const previousNumber = previous && previous.question ? previous.question.number : 0;
+  const firstQuestion = Boolean(previous && previous.phase === 'setup');
+  const nextQuestion = Boolean(
+    previous &&
+      previous.phase === 'reveal' &&
+      previousNumber > 0 &&
+      q.number === previousNumber + 1
+  );
+  const showTransition = firstQuestion || nextQuestion;
+  if (showTransition) {
+    showQuestionTransition(firstQuestion, previousNumber, q);
+  }
 
   const ownerLine = q.isMine
     ? `<div class="q-owner">💗 Senin sorun</div>`
@@ -831,7 +869,7 @@ function renderPlay() {
       clearTimeout(typingTimer);
       typingTimer = setTimeout(() => socket.emit('typing', { active: false }), 1400);
     });
-    setTimeout(() => input.focus({ preventScroll: true }), 120);
+    setTimeout(() => input.focus({ preventScroll: true }), showTransition ? 1600 : 120);
   }
 
   updateTimer();
@@ -890,7 +928,7 @@ function renderReveal() {
   if (!q) return;
 
   $('playTitle').textContent = `Tur ${s.round}`;
-  $('playCounter').textContent = `${q.number}/${q.total}`;
+  $('playCounter').textContent = `Soru ${q.number}/${q.total}`;
 
   let emoji = '💔';
   let title = '';
@@ -913,9 +951,11 @@ function renderReveal() {
   const guessLabel = q.isMine ? `${esc(genitive(q.guesserName))} tahmini` : 'Senin tahminin';
   const truthLabel = q.isMine ? 'Senin cevabın' : `${esc(genitive(q.ownerName))} cevabı`;
 
+  const afterText =
+    q.number >= q.total ? 'tur sonuçları gelecek' : `${q.number + 1}. soruya geçilecek`;
   const readyNote = s.readyNext
-    ? `${esc(s.rivalName || 'Eşin')} de devam edince geçilecek…`
-    : 'Sıradaki soruya geçmek için ikiniz de Devam’a basın.';
+    ? `${esc(s.rivalName || 'Eşin')} de basınca devam edilecek…`
+    : `${q.number}. soru tamamlandı. İkiniz de Devam’a basınca ${afterText}.`;
 
   $('playBody').innerHTML = `
     ${scorebarHtml(s)}
@@ -954,10 +994,11 @@ function entriesHtml(entries) {
     ${entries
       .map((e) => {
         const ok = e.points > 0;
+        const no = e.index ? `<span class="ri-no">${esc(e.index)}.</span>` : '';
         return `<div class="result-item">
           <div class="mark ${ok ? 'ok' : 'no'}">${ok ? (e.points >= 10 ? '🎯' : '✨') : '✖'}</div>
           <div class="ri-body">
-            <div class="ri-q">${esc(e.question)}</div>
+            <div class="ri-q">${no} ${esc(e.question)}</div>
             <div class="ri-a">${esc(e.guesserName)}: <b>${e.guess ? esc(e.guess) : '—'}</b> · Doğru: <b>${esc(e.answer)}</b></div>
           </div>
           <div class="ri-pts ${ok ? '' : 'zero'}">+${e.points}</div>
@@ -1004,7 +1045,7 @@ function renderRoundEnd() {
     <div class="card" style="text-align:center;padding:20px">
       <div style="font-size:2.2rem;margin-bottom:6px">🎉</div>
       <h2 style="margin:0;font-size:1.3rem">10 soru tamam!</h2>
-      <p class="hint" style="margin-top:6px">Yeni tura geçmek için ikiniz de aşağıdaki butona basın.</p>
+      <p class="hint" style="margin-top:6px">İşte turun sonuçları.</p>
     </div>
 
     ${scoreCardsHtml({ players: playersWithRound }, true)}

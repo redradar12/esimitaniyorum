@@ -1322,6 +1322,14 @@ input[type="text"]:focus {
   line-height: 1.35;
 }
 
+.result-item .ri-no {
+  display: inline-block;
+  min-width: 17px;
+  color: var(--peach);
+  font-weight: 800;
+  font-size: 0.76rem;
+}
+
 .result-item .ri-a {
   font-size: 0.76rem;
   color: var(--muted);
@@ -1601,6 +1609,67 @@ input[type="text"]:focus {
   background: rgba(8, 3, 14, 0.72);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
+}
+
+.transition {
+  position: fixed;
+  inset: 0;
+  z-index: 115;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(10, 5, 18, 0.72);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: fadeIn 0.18s ease;
+}
+
+.transition[hidden] {
+  display: none;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.transition-card {
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+  padding: 26px 28px;
+  border-radius: 24px;
+  background:
+    radial-gradient(220px 140px at 50% 0%, rgba(255, 209, 102, 0.16), transparent 70%),
+    linear-gradient(160deg, rgba(255, 95, 143, 0.18), rgba(255, 159, 118, 0.06)),
+    #1b0d2b;
+  border: 1px solid rgba(255, 95, 143, 0.35);
+  box-shadow: 0 30px 60px -20px #000;
+  animation: pop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.transition-card .t-emoji {
+  display: block;
+  font-size: 2.2rem;
+  margin-bottom: 8px;
+}
+
+.transition-card b {
+  display: block;
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+
+.transition-card span {
+  display: block;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--muted);
 }
 
 .paused[hidden] {
