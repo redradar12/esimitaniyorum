@@ -246,7 +246,13 @@ async function main() {
       );
       const guesser = state.question.isMine ? ayse : ahmet;
       guesser.socket.emit('guess', { answer: 'bilmiyorum' });
-      await guesser.wait((s) => s.phase === 'reveal', 'reveal 2');
+      await guesser.wait(
+        (s) =>
+          s.phase === 'reveal' &&
+          s.question &&
+          s.question.number === step + 1,
+        `2. tur reveal ${step + 1}`
+      );
       ayse.socket.emit('ready_next');
       ahmet.socket.emit('ready_next');
     }
