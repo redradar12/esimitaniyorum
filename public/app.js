@@ -27,6 +27,26 @@ const HANGMAN_ALPHABET = [
   'N', 'O', 'Ö', 'P', 'Q', 'R', 'S', 'Ş', 'T', 'U', 'Ü', 'V', 'W', 'X', 'Y', 'Z',
 ];
 
+const MODES = {
+  text: {
+    emoji: '⌨️',
+    label: 'Soru-Cevap',
+    desc: 'Klasik mod: cevabı yazarak tahmin et.',
+  },
+  hangman: {
+    emoji: '🔤',
+    label: 'Adam Asmaca',
+    desc: 'Harf harf tahmin et. 6 can, 60 saniye.',
+  },
+  truefalse: {
+    emoji: '✅',
+    label: 'Doğru mu Yanlış mı?',
+    desc: 'İfadenin doğru mu yanlış mı olduğuna karar ver.',
+  },
+};
+
+const modeOf = (id) => MODES[id] || MODES.text;
+
 /** "Karışık" sanal kategorisi: öneriler 203 sorunun tamamından gelir. */
 const MIXED = { id: 'karisik', label: 'Karışık', emoji: '🎲', questions: [] };
 const CATEGORIES = [MIXED, ...BANK];
@@ -171,6 +191,7 @@ const app = {
   listCategory: 'karisik',
   prevState: null,
   transitionTimer: null,
+  homeMode: 'text',
 };
 
 let currentScreen = 'home';
@@ -309,6 +330,9 @@ function renderLobby() {
   const s = app.state;
   $('roomCode').textContent = s.code;
 
+  const mode = modeOf(s.mode);
+  $('lobbyMode').textContent = `${mode.emoji} ${mode.label}`;
+
   const players = s.players
     .map(
       (p) => `
@@ -346,7 +370,6 @@ function newSetup(round) {
     step: 0,
     items: Array.from({ length: 5 }, () => ({
       category: 'karisik',
-      mode: 'text',
       text: '',
       answer: '',
     })),
@@ -441,15 +464,26 @@ function renderSetup() {
   const nextLabel = isLast
     ? 'Soruları gönder 💌'
     : `Kaydet ve ${stepNo + 1}. soruya geç →`;
+  const mode = modeOf(s.mode);
+  const guideText =
+    s.mode === 'hangman'
+      ? 'Kendinle ilgili bir soru ve 2-16 harflik bir cevap yaz. Eşin harf harf tahmin edecek.'
+      : s.mode === 'truefalse'
+        ? 'Kendinle ilgili bir soru ve doğru cevabını yaz. Oyun sırasında cevabın “doğru mu, yanlış mı?” diye sorulacak.'
+        : 'Kendinle ilgili bir soru ve doğru cevabını yaz. Eşin cevabı yazarak tahmin edecek.';
+  const answerHint =
+    s.mode === 'hangman'
+      ? 'Cevaplar 2-16 harf olmalı. Boşluk ve noktalama korunur.'
+      : 'Senin cevabın bu. Kısa ve net yaz (ör. “Mavi”, “Kebap”).';
 
   $('setupBody').innerHTML = `
     <div class="players-strip" id="setupPlayers">${setupPlayersHtml(s)}</div>
 
     <div class="guide">
-      <span class="g-emoji">✍️</span>
+      <span class="g-emoji">${mode.emoji}</span>
       <div>
-        <b>Şimdi senin sıran.</b>
-        <p>Kendinle ilgili bir soru ve doğru cevabını yaz. Eşin bu cevabı tahmin edecek.</p>
+        <b>${esc(mode.label)} · Şimdi senin sıran.</b>
+        <p>${esc(guideText)}</p>
       </div>
     </div>
 
@@ -510,21 +544,7 @@ function renderSetup() {
       <label class="field-label" for="qAnswer">Doğru cevap</label>
       <input id="qAnswer" type="text" maxlength="60" placeholder="Örn. Mavi"
              value="${esc(item.answer)}" enterkeyhint="${isLast ? 'done' : 'next'}" />
-
-      <div class="mode-label">Eşin nasıl tahmin etsin?</div>
-      <div class="mode-row">
-        <button type="button" class="mode-chip ${
-          item.mode !== 'hangman' ? 'on' : ''
-        }" data-action="mode" data-mode="text">⌨️ Serbest yaz</button>
-        <button type="button" class="mode-chip ${
-          item.mode === 'hangman' ? 'on' : ''
-        }" data-action="mode" data-mode="hangman">🔤 Harf harf</button>
-      </div>
-      <p class="hint">${
-        item.mode === 'hangman'
-          ? 'Eşin harf seçerek tahmin eder (6 can). Cevabı 2-16 harf arasında tut.'
-          : 'Eşin cevabı yazarak tahmin eder. Kısa ve net yaz (ör. “Mavi”, “Kebap”).'
-      }</p>
+      <p class="hint">${esc(answerHint)}</p>
       <p class="hint error" id="setupError" hidden></p>
 
       <div class="btn-row">
@@ -577,9 +597,7 @@ function renderSetupWaiting(s) {
                  <div class="mark">•</div>
                  <div class="ri-body">
                    <div class="ri-q">${esc(q.text)}</div>
-                   <div class="ri-a"><b>${esc(q.answer)}</b>${
-                     q.mode === 'hangman' ? ' · 🔤 harf harf' : ''
-                   }</div>
+                   <div class="ri-a"><b>${esc(q.answer)}</b></div>
                  </div>
                </div>`
              )
@@ -637,10 +655,10 @@ function validateItem(item) {
   if (!item) return 'Bir şeyler ters gitti, sayfayı yenile.';
   if (item.text.trim().length < 3) return 'Önce sorunu yaz.';
   if (!item.answer.trim()) return 'Sorunun cevabını da yazmalısın.';
-  if (item.mode === 'hangman') {
+  if (app.state && app.state.mode === 'hangman') {
     const letterCount = item.answer.replace(/[^A-Za-zÇĞİÖŞÜçğıöşü]/g, '').length;
     if (letterCount < 2 || letterCount > 16) {
-      return 'Harf harf modu için cevap 2-16 harf olmalı.';
+      return 'Adam Asmaca için cevap 2-16 harf olmalı.';
     }
   }
   return '';
@@ -691,7 +709,6 @@ function autofill() {
   app.setup.items = app.setup.items.map((item, i) => ({
     ...item,
     category: chosen[i].category,
-    mode: 'text',
     text: chosen[i].q,
   }));
   chosen.forEach((x) => app.usedQuestions.add(x.q));
@@ -758,7 +775,6 @@ function submitQuestions() {
     text: item.text.trim(),
     answer: item.answer.trim(),
     category: item.category,
-    mode: item.mode === 'hangman' ? 'hangman' : 'text',
   }));
   socket.emit('submit_questions', { questions });
   setTimeout(() => {
@@ -887,30 +903,47 @@ function renderPlay() {
     ? `<div class="q-owner">💗 Senin sorun</div>`
     : `<div class="q-owner">💗 ${esc(genitive(q.ownerName))} sorusu</div>`;
 
+  const isTrueFalse = q.mode === 'truefalse' && Boolean(q.claim);
+  const claimHtml = isTrueFalse
+    ? `<div class="card claim-card">
+         <span class="claim-label">İDDİA</span>
+         <p>${esc(genitive(q.ownerName))} cevabı: <b>“${esc(q.claim.shown)}”</b></p>
+       </div>`
+    : '';
+
+  const ownerSub = isHangman
+    ? `${esc(q.guesserName)} harf harf tahmin ediyor.`
+    : isTrueFalse
+      ? `${esc(q.guesserName)} ifadeyi değerlendiriyor.`
+      : `${esc(q.guesserName)} cevabını tahmin ediyor.`;
+
+  const guesserSub = isHangman
+    ? 'Harf seçerek cevabı bul. 6 canın var.'
+    : isTrueFalse
+      ? 'İfade doğru mu, yanlış mı? Karar ver.'
+      : `Sence ${esc(q.ownerName)} ne cevap verir?`;
+
   const body = q.isMine
     ? `
       <div class="card question-card">
         ${ownerLine}
         <h2 class="question-text">${esc(q.text)}</h2>
-        <p class="q-sub">${
-          isHangman
-            ? `${esc(q.guesserName)} harf harf tahmin ediyor.`
-            : `${esc(q.guesserName)} cevabını tahmin ediyor.`
-        }</p>
+        <p class="q-sub">${ownerSub}</p>
       </div>
+      ${claimHtml}
       <div class="card">
         ${isHangman ? hangmanBoardHtml(q, false) : ''}
         <div class="owner-wait">
           <div class="avatar alt">${esc(initial(q.guesserName))}</div>
           <p id="typingLine">${esc(q.guesserName)} ${
-            isHangman ? 'harf seçiyor…' : 'düşünüyor…'
+            isHangman ? 'harf seçiyor…' : isTrueFalse ? 'karar veriyor…' : 'düşünüyor…'
           }</p>
           ${
-            isHangman
-              ? ''
-              : `<div class="typing" id="typingDots">
+            !isHangman && !isTrueFalse
+              ? `<div class="typing" id="typingDots">
                    <span class="b"></span><span class="b"></span><span class="b"></span>
                  </div>`
+              : ''
           }
         </div>
       </div>
@@ -919,27 +952,44 @@ function renderPlay() {
       <div class="card question-card">
         ${ownerLine}
         <h2 class="question-text">${esc(q.text)}</h2>
-        <p class="q-sub">${
-          isHangman
-            ? 'Harf seçerek cevabı bul. 6 canın var.'
-            : `Sence ${esc(q.ownerName)} ne cevap verir?`
-        }</p>
+        <p class="q-sub">${guesserSub}</p>
       </div>
+      ${claimHtml}
       ${
         isHangman
           ? `<div class="card guess-box">${hangmanBoardHtml(q, true)}</div>`
-          : `<div class="card guess-box">
-               <input id="guessInput" class="guess-input" type="text" maxlength="60"
-                      placeholder="Tahminini yaz…" autocomplete="off" enterkeyhint="send" />
-               <button class="btn btn-primary btn-block" id="guessBtn">Cevapla 💘</button>
-               <p class="hint center" style="margin:0">Tahminin ne kadar yakınsa puan o kadar yüksek.</p>
-             </div>`
+          : isTrueFalse
+            ? `<div class="card guess-box">
+                 <div class="tf-row">
+                   <button type="button" class="tf-btn yes" data-action="trueFalse" data-value="true">✅ Doğru</button>
+                   <button type="button" class="tf-btn no" data-action="trueFalse" data-value="false">❌ Yanlış</button>
+                 </div>
+                 <p class="hint center" style="margin:0">“${esc(q.claim.shown)}” gerçekten ${esc(genitive(q.ownerName))} cevabı mı?</p>
+               </div>`
+            : `<div class="card guess-box">
+                 <input id="guessInput" class="guess-input" type="text" maxlength="60"
+                        placeholder="Tahminini yaz…" autocomplete="off" enterkeyhint="send" />
+                 <button class="btn btn-primary btn-block" id="guessBtn">Cevapla 💘</button>
+                 <p class="hint center" style="margin:0">Tahminin ne kadar yakınsa puan o kadar yüksek.</p>
+               </div>`
       }
     `;
 
   const turnBanner = q.isMine
-    ? `<div class="turn-banner wait">⏳ <b>Sıra ${esc(locative(q.guesserName))}.</b> Senin cevabını tahmin ediyor, bekle.</div>`
-    : `<div class="turn-banner go">🎯 <b>Sıra sende!</b> ${esc(genitive(q.ownerName))} cevabını tahmin et.</div>`;
+    ? `<div class="turn-banner wait">⏳ <b>Sıra ${esc(locative(q.guesserName))}.</b> ${
+        isHangman
+          ? 'Senin cevabını harf harf tahmin ediyor, bekle.'
+          : isTrueFalse
+            ? 'İfadeyi değerlendiriyor, bekle.'
+            : 'Senin cevabını tahmin ediyor, bekle.'
+      }</div>`
+    : `<div class="turn-banner go">🎯 <b>Sıra sende!</b> ${
+        isHangman
+          ? `${esc(genitive(q.ownerName))} cevabını harf harf bul.`
+          : isTrueFalse
+            ? 'İfade doğru mu, yanlış mı?'
+            : `${esc(genitive(q.ownerName))} cevabını tahmin et.`
+      }</div>`;
 
   $('playBody').innerHTML = `
     ${scorebarHtml(s)}
@@ -951,7 +1001,7 @@ function renderPlay() {
     ${body}
   `;
 
-  if (!q.isMine && !isHangman) {
+  if (!q.isMine && !isHangman && !isTrueFalse) {
     const input = $('guessInput');
     const btn = $('guessBtn');
     const send = () => {
@@ -1049,6 +1099,7 @@ function renderReveal() {
   $('playCounter').textContent = `Soru ${q.number}/${q.total}`;
 
   const isHangman = q.mode === 'hangman';
+  const isTrueFalse = q.mode === 'truefalse' && Boolean(q.claim);
 
   let emoji = '💔';
   let title = '';
@@ -1064,6 +1115,16 @@ function renderReveal() {
       emoji = '🧩';
       title = q.isMine ? `${q.guesserName} bilemedi` : 'Bilemedin';
     }
+  } else if (isTrueFalse) {
+    const correct = q.points > 0;
+    emoji = correct ? '🎯' : '💔';
+    title = correct
+      ? q.isMine
+        ? `${q.guesserName} doğru bildi!`
+        : 'Doğru bildin!'
+      : q.isMine
+        ? `${q.guesserName} yanıldı`
+        : 'Yanlış karar!';
   } else if (q.match === 'exact') {
     emoji = '🎯';
     title = q.isMine ? `${q.guesserName} tam bildi!` : 'Tam isabet!';
@@ -1077,14 +1138,21 @@ function renderReveal() {
 
   const pointsText = q.points > 0 ? `+${q.points} puan` : '0 puan';
 
-  const guessLabel = isHangman
-    ? q.isMine
-      ? `${esc(genitive(q.guesserName))} tahtası`
-      : 'Senin tahtan'
+  const guessLabel = isTrueFalse
+    ? 'İfade'
+    : isHangman
+      ? q.isMine
+        ? `${esc(genitive(q.guesserName))} tahtası`
+        : 'Senin tahtan'
+      : q.isMine
+        ? `${esc(genitive(q.guesserName))} tahmini`
+        : 'Senin tahminin';
+  const guessValue = isTrueFalse ? q.claim.shown : q.guess;
+  const truthLabel = isTrueFalse
+    ? 'Gerçek cevap'
     : q.isMine
-      ? `${esc(genitive(q.guesserName))} tahmini`
-      : 'Senin tahminin';
-  const truthLabel = q.isMine ? 'Senin cevabın' : `${esc(genitive(q.ownerName))} cevabı`;
+      ? 'Senin cevabın'
+      : `${esc(genitive(q.ownerName))} cevabı`;
 
   const afterText =
     q.number >= q.total ? 'tur sonuçları gelecek' : `${q.number + 1}. soruya geçilecek`;
@@ -1097,6 +1165,11 @@ function renderReveal() {
         q.hangman.wrong.length
       } yanlış harf</p>`
     : '';
+  const trueFalseNote = isTrueFalse
+    ? `<p class="hint center" style="margin-top:12px">İfade ${
+        q.claim.isTrue ? 'doğruydu ✅' : 'yanlıştı ❌'
+      }${q.guess ? ` · Karar: ${esc(q.guess)}` : ''}</p>`
+    : '';
 
   $('playBody').innerHTML = `
     ${scorebarHtml(s)}
@@ -1108,9 +1181,9 @@ function renderReveal() {
       </div>
       <p class="q-sub" style="margin-top:14px">${esc(q.text)}</p>
       <div class="compare">
-        <div class="compare-item guess ${q.points > 0 ? '' : 'bad'}">
+        <div class="compare-item guess ${q.points === 0 && !isTrueFalse ? 'bad' : ''}">
           <span>${guessLabel}</span>
-          <p>${q.guess ? esc(q.guess) : '—'}</p>
+          <p>${guessValue ? esc(guessValue) : '—'}</p>
         </div>
         <div class="compare-item truth">
           <span>${truthLabel}</span>
@@ -1118,6 +1191,7 @@ function renderReveal() {
         </div>
       </div>
       ${hangmanNote}
+      ${trueFalseNote}
     </div>
     <button class="btn btn-primary btn-block" data-action="continueReveal" ${
       s.readyNext ? 'disabled' : ''
@@ -1140,7 +1214,9 @@ function entriesHtml(entries) {
         const detail =
           e.mode === 'hangman'
             ? `Harf harf${e.wrongCount ? ` · ${e.wrongCount} yanlış` : ''}`
-            : `${esc(e.guesserName)}: <b>${e.guess ? esc(e.guess) : '—'}</b>`;
+            : e.mode === 'truefalse'
+              ? `İfade: <b>${esc(e.claimShown)}</b> (${e.claimTrue ? 'doğru' : 'yanlış'})`
+              : `${esc(e.guesserName)}: <b>${e.guess ? esc(e.guess) : '—'}</b>`;
         return `<div class="result-item">
           <div class="mark ${ok ? 'ok' : 'no'}">${ok ? (e.points >= 10 ? '🎯' : '✨') : '✖'}</div>
           <div class="ri-body">
@@ -1317,11 +1393,14 @@ document.addEventListener('click', (event) => {
       app.setupKey = '';
       renderSetup();
       break;
-    case 'mode':
-      if (!app.setup) break;
-      currentSetupItem().mode = btn.dataset.mode === 'hangman' ? 'hangman' : 'text';
-      app.setupKey = '';
-      renderSetup();
+    case 'pickMode':
+      app.homeMode = ['text', 'hangman', 'truefalse'].includes(btn.dataset.mode)
+        ? btn.dataset.mode
+        : 'text';
+      document
+        .querySelectorAll('.home-mode')
+        .forEach((card) => card.classList.toggle('on', card.dataset.mode === app.homeMode));
+      $('modeDesc').textContent = modeOf(app.homeMode).desc;
       break;
     case 'suggest': {
       if (!app.setup) break;
@@ -1362,6 +1441,12 @@ document.addEventListener('click', (event) => {
       if (!letter) break;
       btn.disabled = true;
       socket.emit('hangman_letter', { letter });
+      break;
+    }
+    case 'trueFalse': {
+      if (!app.state || app.state.phase !== 'play') break;
+      socket.emit('truefalse_answer', { value: btn.dataset.value === 'true' });
+      document.querySelectorAll('.tf-btn').forEach((b) => (b.disabled = true));
       break;
     }
     case 'shuffle':
@@ -1448,7 +1533,7 @@ $('createBtn').addEventListener('click', () => {
     toast('Sunucuya bağlanılamadı. İnternetini kontrol et.');
     return;
   }
-  socket.emit('create_room', { name });
+  socket.emit('create_room', { name, mode: app.homeMode });
 });
 
 $('joinBtn').addEventListener('click', () => {

@@ -19,6 +19,7 @@ const HOST = process.env.HOST || undefined;
 const QUESTIONS_PER_PLAYER = 5;
 const GUESS_SECONDS = 45;
 const HANGMAN_SECONDS = 60;
+const TRUEFALSE_SECONDS = 30;
 const HANGMAN_LIVES = 6;
 const REVEAL_MS = 25000;
 const ROOM_TTL = 1000 * 60 * 60 * 6; // 6 saat
@@ -173,8 +174,10 @@ function evaluate(truth, guess) {
 
 const LETTER_RE = /[A-ZÇĞİÖŞÜ]/;
 
-function questionSeconds(question) {
-  return question && question.mode === 'hangman' ? HANGMAN_SECONDS : GUESS_SECONDS;
+function questionSeconds(mode) {
+  if (mode === 'hangman') return HANGMAN_SECONDS;
+  if (mode === 'truefalse') return TRUEFALSE_SECONDS;
+  return GUESS_SECONDS;
 }
 
 function answerLetters(answer) {
@@ -204,13 +207,64 @@ function hangmanGuessText(answer, revealed) {
     .join(' ');
 }
 
+/** Doğru/Yanlış modu için iddia üretir. Yarısı doğru, yarısı yanlış cevaplı. */
+function buildClaim(room, ownerIndex, question) {
+  const owner = room.players[ownerIndex];
+  const rival = room.players[1 - ownerIndex];
+  const truth = String(question.answer);
+  const truthKey = norm(truth);
+  const questionKey = norm(question.text);
+
+  if (Math.random() < 0.5) {
+    return { shown: truth, isTrue: true };
+  }
+
+  const candidates = [];
+  const add = (answer, weight) => {
+    const value = String(answer || '').trim();
+    if (value && norm(value) !== truthKey) candidates.push({ value, weight });
+  };
+
+  for (const q of rival.questions) {
+    add(q.answer, norm(q.text) === questionKey ? 0 : 1);
+  }
+  for (const q of owner.questions) {
+    if (q !== question) add(q.answer, 2);
+  }
+  for (const fallback of [
+    'Mavi',
+    'Kebap',
+    'Futbol',
+    'Kedi',
+    'Deniz',
+    'Pizza',
+    'Yeşil',
+    'Köpek',
+    'Çay',
+    'Dağ',
+    'Sinema',
+    'Yaz',
+  ]) {
+    add(fallback, 3);
+  }
+
+  if (!candidates.length) return { shown: 'Bilmiyorum', isTrue: false };
+  const bestWeight = Math.min(...candidates.map((c) => c.weight));
+  const pool = candidates.filter((c) => c.weight === bestWeight);
+  return {
+    shown: pool[Math.floor(Math.random() * pool.length)].value,
+    isTrue: false,
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /*  Oda / oyuncu                                                       */
 /* ------------------------------------------------------------------ */
 
-function createRoom() {
+function createRoom(mode) {
   return {
     code: makeCode(),
+    mode: ['text', 'hangman', 'truefalse'].includes(mode) ? mode : 'text',
     createdAt: Date.now(),
     phase: 'lobby',
     round: 1,
@@ -295,12 +349,13 @@ function stateFor(room, index) {
 
   const state = {
     code: room.code,
+    mode: room.mode,
     phase: room.phase,
     round: room.round,
     serverTime: Date.now(),
     guessSeconds: room.game.current && room.game.current.seconds
       ? room.game.current.seconds
-      : GUESS_SECONDS,
+      : questionSeconds(room.mode),
     me: {
       id: me.id,
       index,
@@ -317,7 +372,7 @@ function stateFor(room, index) {
       state.question = {
         text: entry.question.text,
         category: entry.question.category,
-        mode: entry.question.mode || 'text',
+        mode: room.mode,
         owner: entry.owner,
         ownerName: room.players[entry.owner].name,
         guesserName: room.players[1 - entry.owner].name,
@@ -327,13 +382,16 @@ function stateFor(room, index) {
         deadline: room.game.deadline,
         paused: !me.connected || !(rival && rival.connected),
       };
-      if (state.question.mode === 'hangman') {
+      if (room.mode === 'hangman') {
         state.question.hangman = {
           mask: buildHangmanMask(entry.question.answer, entry.revealed),
           wrong: (entry.wrongLetters || []).slice(),
           lives: HANGMAN_LIVES - (entry.wrongLetters || []).length,
           solved: Boolean(entry.solved),
         };
+      }
+      if (room.mode === 'truefalse' && entry.claim) {
+        state.question.claim = { shown: entry.claim.shown };
       }
       if (room.phase === 'reveal') {
         state.question.answer = entry.question.answer;
@@ -344,6 +402,9 @@ function stateFor(room, index) {
         state.readyNext = me.readyNext;
         state.otherReadyNext = rival ? rival.readyNext : false;
         state.rivalName = rival ? rival.name : '';
+        if (room.mode === 'truefalse' && entry.claim) {
+          state.question.claim.isTrue = entry.claim.isTrue;
+        }
       }
     }
   }
@@ -356,7 +417,6 @@ function stateFor(room, index) {
     state.myQuestions = me.questions.map((q) => ({
       text: q.text,
       answer: q.answer,
-      mode: q.mode || 'text',
     }));
   }
 
@@ -411,11 +471,14 @@ function startStep(room) {
   room.phase = 'play';
   room.players.forEach((p) => (p.readyNext = false));
   const question = room.players[item.owner].questions[item.qIndex];
-  const seconds = questionSeconds(question);
+  const seconds = questionSeconds(room.mode);
+  const claim =
+    room.mode === 'truefalse' ? buildClaim(room, item.owner, question) : null;
   room.game.current = {
     owner: item.owner,
     guesser: 1 - item.owner,
     question,
+    claim,
     guess: '',
     points: 0,
     match: null,
@@ -458,8 +521,10 @@ function finalizeGuess(room, guessText, timedOut, override) {
     guesserName: guesser.name,
     question: current.question.text,
     category: current.question.category,
-    mode: current.question.mode || 'text',
+    mode: room.mode,
     wrongCount: (current.wrongLetters || []).length,
+    claimShown: current.claim ? current.claim.shown : '',
+    claimTrue: current.claim ? current.claim.isTrue : null,
     answer: current.question.answer,
     guess: current.guess,
     points: result.points,
@@ -532,12 +597,12 @@ function meOf(room, socket) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('create_room', ({ name } = {}) => {
+  socket.on('create_room', ({ name, mode } = {}) => {
     const clean = cleanName(name);
     if (!clean) return sendError(socket, 'bad_name', 'En az 2 karakterlik bir takma ad yaz.');
     if (!socket.connected) return;
 
-    const room = createRoom();
+    const room = createRoom(mode);
     const player = makePlayer(clean, 0);
     player.socketId = socket.id;
     player.connected = true;
@@ -598,7 +663,7 @@ io.on('connection', (socket) => {
 
     // Oyun sırasında kopmuşsa süreleri tazele
     if (room.phase === 'play' && room.game.current) {
-      const seconds = questionSeconds(room.game.current.question);
+      const seconds = questionSeconds(room.mode);
       room.game.deadline = Date.now() + seconds * 1000;
       if (room.guessTimer) clearTimeout(room.guessTimer);
       room.guessTimer = setTimeout(() => handleTimeout(room), seconds * 1000 + 400);
@@ -629,20 +694,19 @@ io.on('connection', (socket) => {
       const text = cleanText(item && item.text, 120);
       const answer = cleanText(item && item.answer, 60);
       const category = cleanText(item && item.category, 24) || 'genel';
-      const mode = item && item.mode === 'hangman' ? 'hangman' : 'text';
       if (text.length < 3) return sendError(socket, 'bad_questions', 'Sorulardan biri çok kısa.');
       if (answer.length < 1) return sendError(socket, 'bad_questions', 'Her sorunun bir cevabı olmalı.');
-      if (mode === 'hangman') {
+      if (room.mode === 'hangman') {
         const letterCount = answer.replace(/[^A-Za-zÇĞİÖŞÜçğıöşü]/g, '').length;
         if (letterCount < 2 || letterCount > 16) {
           return sendError(
             socket,
             'bad_questions',
-            'Harf harf modu için cevap 2-16 harf arasında olmalı.'
+            'Adam Asmaca için cevaplar 2-16 harf arasında olmalı.'
           );
         }
       }
-      prepared.push({ text, answer, category, mode, id: crypto.randomUUID() });
+      prepared.push({ text, answer, category, id: crypto.randomUUID() });
     }
 
     me.questions = prepared;
@@ -663,7 +727,7 @@ io.on('connection', (socket) => {
     if (!room || !me) return;
     if (room.phase !== 'play' || !room.game.current) return;
     if (room.game.current.guesser !== me.index) return;
-    if (room.game.current.question.mode === 'hangman') return;
+    if (room.mode !== 'text') return;
     finalizeGuess(room, answer, false);
   });
 
@@ -674,7 +738,7 @@ io.on('connection', (socket) => {
     if (room.phase !== 'play' || !room.game.current) return;
     const current = room.game.current;
     if (current.guesser !== me.index) return;
-    if (current.question.mode !== 'hangman' || current.solved) return;
+    if (room.mode !== 'hangman' || current.solved) return;
 
     const clean = String(letter || '')
       .trim()
@@ -709,6 +773,23 @@ io.on('connection', (socket) => {
     }
 
     broadcast(room);
+  });
+
+  socket.on('truefalse_answer', ({ value } = {}) => {
+    const room = roomOf(socket);
+    const me = meOf(room, socket);
+    if (!room || !me) return;
+    if (room.phase !== 'play' || !room.game.current) return;
+    const current = room.game.current;
+    if (current.guesser !== me.index) return;
+    if (room.mode !== 'truefalse' || !current.claim) return;
+
+    const answer = value === true || value === 'true';
+    const correct = answer === current.claim.isTrue;
+    finalizeGuess(room, answer ? 'Doğru' : 'Yanlış', false, {
+      points: correct ? 10 : 0,
+      match: correct ? 'exact' : 'wrong',
+    });
   });
 
   socket.on('typing', ({ active } = {}) => {

@@ -11,7 +11,9 @@
     "gorsel": "node test/visual.js",
     "sorular": "node test/browse.js",
     "asmaca": "node test/hangman.js",
-    "asmaca-ui": "node test/hangman-ui.js"
+    "asmaca-ui": "node test/hangman-ui.js",
+    "dogruyanlis": "node test/truefalse.js",
+    "dogruyanlis-ui": "node test/truefalse-ui.js"
   },
   "engines": {
     "node": ">=18"

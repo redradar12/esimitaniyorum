@@ -65,10 +65,23 @@ async function fillStep(page, qtext, answer) {
   try {
     console.log('\nOda');
     await a.goto(BASE, { waitUntil: 'networkidle2' });
+    await a.click('.home-mode[data-mode="hangman"]');
+    await sleep(200);
+    const picked = await a.evaluate(() => ({
+      mode: app.homeMode,
+      on: document.querySelector('.home-mode.on')?.dataset.mode,
+      desc: document.getElementById('modeDesc')?.textContent,
+    }));
+    check(picked.mode === 'hangman' && picked.on === 'hangman', 'Ana sayfada Adam Asmaca seçildi', picked.on);
+    check(picked.desc.includes('Harf harf'), 'Mod açıklaması güncellendi', picked.desc);
+    await a.screenshot({ path: path.join(OUT, '22-asmaca-modu.png') });
+
     await a.type('#nameInput', 'Ayşe');
     await a.click('#createBtn');
     await a.waitForFunction("app.state && app.state.phase === 'lobby'", { timeout: 15000 });
     const code = await a.evaluate(() => app.state.code);
+    const lobbyMode = await a.evaluate(() => document.getElementById('lobbyMode')?.textContent);
+    check(lobbyMode.includes('Adam Asmaca'), 'Lobide oda modu görünüyor', lobbyMode);
 
     await b.goto(BASE, { waitUntil: 'networkidle2' });
     await b.type('#nameInput', 'Ahmet');
@@ -79,18 +92,15 @@ async function fillStep(page, qtext, answer) {
     await a.click('#introStart');
     await b.evaluate(() => document.getElementById('introStart')?.click());
 
-    console.log('\nMod seçimi');
+    console.log('\nSoru hazırlığı');
     await a.type('#qText', 'En sevdiğim renk ne?');
     await a.type('#qAnswer', 'Mavi');
-    await a.click('.mode-chip[data-mode="hangman"]');
-    await sleep(300);
-    const mode = await a.evaluate(() => ({
-      mode: app.setup.items[0].mode,
-      on: document.querySelector('.mode-chip.on')?.textContent.trim(),
+    const setup = await a.evaluate(() => ({
+      guide: document.querySelector('.guide b')?.textContent,
+      hint: [...document.querySelectorAll('.hint')].map((h) => h.textContent).join(' '),
     }));
-    check(mode.mode === 'hangman', 'Harf harf modu seçildi', mode.on);
-    await a.screenshot({ path: path.join(OUT, '22-asmaca-modu.png') });
-
+    check(setup.guide.includes('Adam Asmaca'), 'Hazırlık ekranı modu gösteriyor', setup.guide);
+    check(setup.hint.includes('2-16'), 'Hazırlıkta 2-16 harf kuralı yazıyor');
     await a.click('[data-action="nextStep"]');
     await sleep(1300);
 

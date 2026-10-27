@@ -64,7 +64,7 @@ function makeClient(name) {
   return client;
 }
 
-const q = (text, answer, mode = 'text') => ({ text, answer, category: 'genel', mode });
+const q = (text, answer) => ({ text, answer, category: 'genel' });
 
 async function main() {
   const server = spawn(process.execPath, ['server.js'], {
@@ -82,7 +82,7 @@ async function main() {
   try {
     await Promise.all([ayse.waitConnect(), ahmet.waitConnect()]);
     console.log('\n1) Oda ve sorular');
-    ayse.socket.emit('create_room', { name: 'Ayşe' });
+    ayse.socket.emit('create_room', { name: 'Ayşe', mode: 'hangman' });
     const lobby = await ayse.wait((s) => s.phase === 'lobby');
     ahmet.socket.emit('join_room', { name: 'Ahmet', code: lobby.code });
     await Promise.all([
@@ -92,7 +92,7 @@ async function main() {
 
     ayse.socket.emit('submit_questions', {
       questions: [
-        q('En sevdiğim renk?', 'Mavi', 'hangman'),
+        q('En sevdiğim renk?', 'Mavi'),
         q('En sevdiğim yemek?', 'Kebap'),
         q('En sevdiğim spor?', 'Futbol'),
         q('Evcil hayvanım?', 'Kedi'),
@@ -101,7 +101,7 @@ async function main() {
     });
     ahmet.socket.emit('submit_questions', {
       questions: [
-        q('En sevdiğim hayvan?', 'Kedi', 'hangman'),
+        q('En sevdiğim hayvan?', 'Kedi'),
         q('En sevdiğim içecek?', 'Çay'),
         q('En sevdiğim renk?', 'Yeşil'),
         q('Hangi takım?', 'Basketbol'),
@@ -183,13 +183,23 @@ async function main() {
     ayse.socket.emit('ready_next');
     ahmet.socket.emit('ready_next');
 
+    const A_ANSWERS = ['Mavi', 'Kebap', 'Futbol', 'Kedi', 'Deniz'];
+    const B_ANSWERS = ['Kedi', 'Çay', 'Yeşil', 'Basketbol', 'Dağ'];
+
     for (let step = 2; step < 10; step++) {
-      const state = await ahmet.wait(
+      await ahmet.wait(
         (s) => s.phase === 'play' && s.question && s.question.number === step + 1,
         `soru ${step + 1}`
       );
-      if (state.question.isMine) ayse.socket.emit('guess', { answer: 'bilmiyorum' });
-      else ahmet.socket.emit('guess', { answer: 'bilmiyorum' });
+      const ownerA = step % 2 === 0;
+      const answer = (ownerA ? A_ANSWERS : B_ANSWERS)[Math.floor(step / 2)];
+      const guesser = ownerA ? ahmet : ayse;
+      const letters = [...new Set(answer.toLocaleUpperCase('tr-TR').split(''))].filter((ch) =>
+        /[A-ZÇĞİÖŞÜ]/.test(ch)
+      );
+      for (const letter of letters) {
+        guesser.socket.emit('hangman_letter', { letter });
+      }
       await ahmet.wait((s) => s.phase === 'reveal', `reveal ${step + 1}`, 10000);
       ayse.socket.emit('ready_next');
       ahmet.socket.emit('ready_next');
@@ -202,8 +212,8 @@ async function main() {
     check(entries[0].points === 8, 'Geçmişte 1. soru 8 puan');
     check(entries[1].mode === 'hangman' && entries[1].wrongCount === 6, 'Geçmişte 2. soru adam asmaca / 6 yanlış');
     check(entries[1].points === 0, 'Geçmişte 2. soru 0 puan');
-    check(roundEnd.players.find((p) => p.name === 'Ahmet').score === 8, 'Ahmet 8 puan');
-    check(roundEnd.players.find((p) => p.name === 'Ayşe').score === 0, 'Ayşe 0 puan');
+    check(roundEnd.players.find((p) => p.name === 'Ahmet').score === 48, 'Ahmet 48 puan');
+    check(roundEnd.players.find((p) => p.name === 'Ayşe').score === 40, 'Ayşe 40 puan');
   } catch (error) {
     failures++;
     console.error('\nHATA:', error.message);

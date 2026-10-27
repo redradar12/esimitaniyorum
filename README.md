@@ -4,6 +4,8 @@ Sevgilinle / eşinle **iki ayrı telefondan**, aynı anda oynanan bir "beni ne k
 
 Her oyuncu kendisi hakkında **5 soru ve cevabını** yazar. Sırayla eşinin sorularına cevap verirsin, puanlar hesaplanır, tur biter ve **yeni 5 soruya** geçilir. Soru bulamazsan **10 kategorideki 200+ hazır sorudan** otomatik seçilir.
 
+Üç ayrı oyun modu var: **⌨️ Soru-Cevap**, **🔤 Adam Asmaca**, **✅ Doğru mu Yanlış mı?** Modu oda kurarken seçersin; eşin kodu/QR ile katılınca aynı modda oynarsınız.
+
 Arayüz Türkçe, mobil öncelikli ve koyu romantik temalı. Kurulum gerektirmeyen vanilla JavaScript + Node.js/Socket.IO ile yazıldı.
 
 ---
@@ -44,18 +46,30 @@ Varsayılan adres: **http://localhost:4173**
 
 ---
 
+## Oyun modları
+
+| Mod | Nasıl oynanır |
+| --- | --- |
+| ⌨️ **Soru-Cevap** | Eşinin cevabını yazarak tahmin edersin. Her soru için 45 saniye. |
+| 🔤 **Adam Asmaca** | Cevaplar 2–16 harf olmalı. Harf seçerek bulursun: 6 can, 60 saniye. 0 yanlış **10**, 1–2 yanlış **8**, 3+ yanlış **6** puan; 6 yanlışta **0**. |
+| ✅ **Doğru mu Yanlış mı?** | Ekranda bir iddia çıkar: “Ayşe’nin cevabı: Mavi”. Doğru/Yanlış dersin. 30 saniye; doğru **10**, yanlış **0** puan. Yanlış iddialar eşinin cevaplarından üretilir. |
+
+---
+
 ## Oyun akışı
 
 | Aşama | Ne oluyor |
 | --- | --- |
-| **Lobi** | Oda kodu + QR kod oluşur, eşin katılır. |
+| **Lobi** | Ana sayfada mod seçilir; oda kodu + QR kod oluşur, eşin katılır. |
 | **Soru hazırlığı** | Herkes kendisi hakkında 5 soru ve cevabını yazar. **Karışık** kategori (tüm banka) veya 10 kategoriden biri seçilir. “Tümünü gör” ile 203 soru aranıp seçilebilir; öneriler tekrar etmez. |
-| **Tahmin** | Sorular sırayla gelir: A1, B1, A2, B2… Sorunun sahibi beklemede, eşi **45 saniye** içinde cevabı yazar. |
-| **Sonuç** | Tahmin ile gerçek cevap yan yana gösterilir, puan eklenir. |
+| **Tahmin** | Sorular sırayla gelir: A1, B1, A2, B2… Moda göre cevap yazılır, harf seçilir veya doğru/yanlış kararı verilir. |
+| **Sonuç** | Tahmin/karar ile gerçek cevap yan yana gösterilir, puan eklenir. |
 | **Tur sonu** | 10 soru biter, tur skoru ve tüm cevaplar listelenir. İki taraf da "Sonraki 5 soru" derse yeni tur başlar. |
 | **Final** | "Bitir" ile toplam puanlar, kazanan ve uyum yüzdesi gösterilir. "Yeniden oyna" ile sıfırdan başlanır. |
 
 ### Puanlama
+
+**Soru-Cevap:**
 
 | Durum | Puan |
 | --- | --- |
@@ -63,6 +77,9 @@ Varsayılan adres: **http://localhost:4173**
 | Cevabı kapsayan tahmin ("adana kebap" ↔ "kebap") | **8** |
 | Kelime eşleşmesi / küçük yazım farkı | **6** |
 | Bilemedi veya süre doldu | **0** |
+
+**Adam Asmaca:** 0 yanlış **10**, 1–2 yanlış **8**, 3+ yanlış **6**; 6 yanlış veya süre doldu **0**.
+**Doğru/Yanlış:** doğru karar **10**, yanlış karar veya süre doldu **0**.
 
 Türkçe karakterler ve büyük/küçük harf farkı önemsenmez (`İ`/`i`, `Ş`/`ş` gibi).
 
@@ -98,9 +115,13 @@ esimitanıyorum/
 ## Testler
 
 ```bash
-npm test        # Oda kurma, 10 soru, puanlama, yeni tur, final, yeniden oynama
-npm run gorsel  # Chrome'u 390x844 mobil görünümde açar, test/screens'e ekran görüntüleri kaydeder
-npm run sorular # Karışık kategori, tüm sorular listesi, arama, tekrarsız öneriler
+npm test             # Oda kurma, 10 soru, puanlama, yeni tur, final, yeniden oynama
+npm run gorsel       # Chrome'u 390x844 mobil görünümde açar, test/screens'e ekran görüntüleri kaydeder
+npm run sorular      # Karışık kategori, tüm sorular listesi, arama, tekrarsız öneriler
+npm run asmaca       # Adam Asmaca sunucu akışı (canlar, puan, geçmiş)
+npm run asmaca-ui    # Adam Asmaca arayüzü (mod seçimi, klavye, tahta)
+npm run dogruyanlis  # Doğru/Yanlış sunucu akışı (iddia, puan, geçmiş)
+npm run dogruyanlis-ui # Doğru/Yanlış arayüzü (iddia kartı, butonlar, sonuç)
 ```
 
 `npm run gorsel` için Chrome gerekir. Farklı bir konumdaysa:

@@ -28,7 +28,26 @@
         <h1>Eşimi<br /><span>Tanıyorum</span></h1>
         <p class="tagline">Birbirinizi ne kadar tanıyorsunuz?</p>
         <div class="hero-meta">🎲 200+ hazır soru · 10 kategori</div>
-        <p class="hero-steps"><b>1</b> Oda kur <span>·</span> <b>2</b> Eşin katılsın <span>·</span> <b>3</b> 5 soru, 5 tahmin</p>
+        <p class="hero-steps"><b>1</b> Mod seç <span>·</span> <b>2</b> Oda kur <span>·</span> <b>3</b> 5 soru, 5 tahmin</p>
+      </div>
+
+      <div class="mode-pick">
+        <div class="mode-pick-title">Oyun modu seç</div>
+        <div class="mode-grid">
+          <button type="button" class="home-mode on" data-action="pickMode" data-mode="text">
+            <span class="hme">⌨️</span>
+            <b>Soru-Cevap</b>
+          </button>
+          <button type="button" class="home-mode" data-action="pickMode" data-mode="hangman">
+            <span class="hme">🔤</span>
+            <b>Adam Asmaca</b>
+          </button>
+          <button type="button" class="home-mode" data-action="pickMode" data-mode="truefalse">
+            <span class="hme">✅</span>
+            <b>Doğru/Yanlış</b>
+          </button>
+        </div>
+        <p class="mode-desc" id="modeDesc">Klasik mod: cevabı yazarak tahmin et.</p>
       </div>
 
       <div class="card stack">
@@ -48,6 +67,7 @@
                  autocapitalize="characters" autocomplete="off" spellcheck="false" />
           <button id="joinBtn" class="btn">Katıl</button>
         </div>
+        <p class="hint center" style="margin-top:2px">Kodla katılıyorsan oyun modunu oda belirler.</p>
       </div>
 
       <button id="howBtn" class="link-btn">Nasıl oynanır? →</button>
@@ -69,6 +89,7 @@
       </div>
 
       <h2 class="center">Oda hazır!</h2>
+      <div class="mode-pill" id="lobbyMode">⌨️ Soru-Cevap</div>
       <p class="center muted">Kodu eşinle paylaş, o da bu odaya katılsın.</p>
 
       <div class="code-box">
@@ -162,11 +183,11 @@
         <button id="helpClose" class="icon-btn" aria-label="Kapat">✕</button>
       </div>
       <ol class="steps">
-        <li><b>Oda kur.</b> Takma adını yaz, oda kodu oluşsun.</li>
+        <li><b>Mod seç ve oda kur.</b> Soru-Cevap, Adam Asmaca veya Doğru/Yanlış. Takma adını yaz, oda kodunu eşinle paylaş.</li>
         <li><b>Eşin katılsın.</b> Kodu kendi telefonuna girsin. Aynı Wi-Fi’de olmalısınız.</li>
         <li><b>5 soru hazırla.</b> Kendinle ilgili 5 soru ve cevabını yaz. 10 kategoride 200+ hazır soru var; “Tümünü gör” ile hepsine bakabilir, arayabilirsin.</li>
-        <li><b>Sırayla tahmin et.</b> Sıra eşinin sorusuna gelince onun cevabını tahmin et. 45 saniyen var.</li>
-        <li><b>Puan toplayın.</b> Tam isabet 10, yakın cevap 6–8 puan. Tur bitince yeni 5 soruya geçin.</li>
+        <li><b>Moda göre oyna.</b> Soru-Cevap’ta cevabı yazarsın, Adam Asmaca’da harf seçersin, Doğru/Yanlış’ta karar verirsin.</li>
+        <li><b>Puan toplayın.</b> Doğru cevaplar puan kazandırır. Tur bitince ikiniz de yeni 5 soru hazırlayıp devam edersiniz.</li>
       </ol>
       <p class="hint">İpucu: Cevapları kısa tut (ör. “Adana kebap”, “mavi”). Böylece eşleşmesi kolay olur.</p>
       <button id="helpOk" class="btn btn-primary">Anladım</button>
