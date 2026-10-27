@@ -1,9 +1,9 @@
 'use strict';
 
 /**
- * Adam Asmaca (bağımsız mod) arayüz testi.
- * Sunucuyu sabit "Kebap" kelimesiyle başlatır; sırayla harf seçip
- * kelimeyi tamamlar, tur sonu ve finali doğrular.
+ * Adam Asmaca (soru sorarak) arayüz testi.
+ * Bir oyuncu soru + cevap yazar, diğeri harf harf tahmin eder;
+ * sonra roller değişir. Tur sonu ve final kontrol edilir.
  *
  *   npm run asmaca-ui
  */
@@ -31,7 +31,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 (async () => {
   const server = spawn(process.execPath, ['server.js'], {
     cwd: path.join(__dirname, '..'),
-    env: { ...process.env, PORT: String(PORT), HANGMAN_WORD: 'Kebap' },
+    env: { ...process.env, PORT: String(PORT) },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   await sleep(1400);
@@ -70,109 +70,156 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     await a.click('#createBtn');
     await a.waitForFunction("app.state && app.state.phase === 'lobby'", { timeout: 15000 });
     const code = await a.evaluate(() => app.state.code);
-    const lobbyMode = await a.evaluate(() => document.getElementById('lobbyMode')?.textContent);
-    const lobbyFoot = await a.evaluate(() => document.getElementById('lobbyFoot')?.textContent);
-    check(lobbyMode.includes('Adam Asmaca'), 'Lobide mod görünüyor', lobbyMode);
-    check(lobbyFoot.includes('oyun otomatik'), 'Lobide "oyun otomatik başlıyor" yazıyor', lobbyFoot);
 
     await b.goto(BASE, { waitUntil: 'networkidle2' });
     await b.type('#nameInput', 'Ahmet');
     await b.type('#codeInput', code);
     await b.click('#joinBtn');
 
-    await a.waitForFunction(
-      "app.state && app.state.phase === 'play' && app.state.hangman",
-      { timeout: 15000 }
-    );
-    await b.waitForFunction(
-      "app.state && app.state.phase === 'play' && app.state.hangman",
-      { timeout: 15000 }
-    );
-    await sleep(600);
+    await a.waitForFunction("app.state && app.state.phase === 'ask'", { timeout: 15000 });
+    await b.waitForFunction("app.state && app.state.phase === 'ask'", { timeout: 15000 });
+    await sleep(400);
 
-    console.log('\nOyun doğrudan başladı');
-    const state = await a.evaluate(() => ({
-      phase: app.state.phase,
-      setupShown: document.querySelector('.screen.active')?.id,
+    console.log('\n1. soru: Ayşe soruyor');
+    const askView = await a.evaluate(() => ({
+      screen: document.querySelector('.screen.active')?.id,
       title: document.getElementById('playTitle')?.textContent,
       counter: document.getElementById('playCounter')?.textContent,
+      hasForm: Boolean(document.getElementById('askQ')) && Boolean(document.getElementById('askA')),
+      asker: app.state.hangman.askerName,
+      isMyAsk: app.state.hangman.isMyAsk,
+    }));
+    check(askView.screen === 'screen-play', 'Soru hazırlığı yok, oyun ekranı açıldı');
+    check(askView.title === 'Adam Asmaca', 'Başlık doğru');
+    check(askView.counter === 'Soru 1/2', 'Sayaç Soru 1/2', askView.counter);
+    check(askView.hasForm, 'Soru + cevap formu var');
+    check(askView.asker === 'Ayşe' && askView.isMyAsk, 'İlk soruyu Ayşe soruyor');
+
+    const waitView = await b.evaluate(() => ({
+      form: Boolean(document.getElementById('askQ')),
+      text: document.querySelector('#playBody .waiting-card')?.textContent,
+    }));
+    check(!waitView.form, 'Ahmet’te form yok');
+    check(waitView.text.includes('soru hazırlıyor'), 'Ahmet bekliyor', waitView.text);
+
+    await a.type('#askQ', 'En sevdiğim renk ne?');
+    await a.type('#askA', 'Mavi');
+    await a.screenshot({ path: path.join(OUT, '23-asmaca-soru-sor.png') });
+    await a.click('[data-action="submitAsk"]');
+
+    await b.waitForFunction("app.state.phase === 'guess'", { timeout: 15000 });
+    await a.waitForFunction("app.state.phase === 'guess'", { timeout: 15000 });
+    await sleep(400);
+
+    console.log('\nAhmet harf seçiyor');
+    const guessView = await b.evaluate(() => ({
+      question: document.querySelector('#playBody .question-text')?.textContent,
       cells: document.querySelectorAll('.hm-cell').length,
       keys: document.querySelectorAll('.hm-key').length,
-      lives: app.state.hangman.lives,
-      hint: document.querySelector('#playBody .q-owner')?.textContent,
-      myEnabledKeys: document.querySelectorAll('.hm-key:not([disabled])').length,
-    }));
-    check(state.phase === 'play', 'Soru hazırlığı atlandı');
-    check(state.setupShown === 'screen-play', 'Doğrudan oyun ekranı açıldı', state.setupShown);
-    check(state.title === 'Adam Asmaca', 'Başlık doğru');
-    check(state.counter === 'Kelime 1', 'Kelime sayacı doğru', state.counter);
-    check(state.cells === 5, '5 harf kutusu');
-    check(state.keys === 32, '32 harfli klavye');
-    check(state.lives === 6, '6 can');
-    check(state.hint.includes('Yemek'), 'İpucu kategorisi gösteriliyor', state.hint);
-    check(state.myEnabledKeys > 0, 'Sırası olan oyuncunun tuşları açık');
-
-    const bKeys = await b.evaluate(() => ({
       enabled: document.querySelectorAll('.hm-key:not([disabled])').length,
-      banner: document.querySelector('.turn-banner')?.textContent,
-    }));
-    check(bKeys.enabled === 0, 'Sırası olmayan oyuncunun tuşları kapalı');
-    check(bKeys.banner.includes('Ayşe'), 'Sıranın Ayşe’de olduğu yazıyor', bKeys.banner);
-    await a.screenshot({ path: path.join(OUT, '23-asmaca-tahta.png') });
-
-    console.log('\nSırayla harf seçme');
-    const moves = [
-      [a, 'K'],
-      [b, 'E'],
-      [a, 'B'],
-      [b, 'X'],
-      [a, 'A'],
-      [b, 'P'],
-    ];
-    for (const [page, letter] of moves) {
-      await page.click(`.hm-key[data-letter="${letter}"]`);
-      await sleep(400);
-    }
-    const afterWrong = await a.evaluate(() => ({
       lives: app.state.hangman.lives,
-      wrong: app.state.hangman.wrong,
+      isMyGuess: app.state.hangman.isMyGuess,
     }));
-    check(afterWrong.lives === 5, 'Yanlış harfte 1 can gitti', afterWrong.lives);
+    check(guessView.question === 'En sevdiğim renk ne?', 'Soru Ahmet’e geldi');
+    check(guessView.cells === 4, '4 harf kutusu');
+    check(guessView.keys === 32, 'Klavye var');
+    check(guessView.enabled === 32, 'Tüm harfler açık');
+    check(guessView.lives === 6, '6 can');
+    check(guessView.isMyGuess, 'Ahmet tahmin ediyor');
 
+    const askerGuessView = await a.evaluate(() => ({
+      keys: document.querySelectorAll('.hm-key').length,
+      question: document.querySelector('#playBody .question-text')?.textContent,
+    }));
+    check(askerGuessView.keys === 0, 'Soran tarafta klavye yok');
+    check(askerGuessView.question === 'En sevdiğim renk ne?', 'Soran da soruyu görüyor');
+    await b.screenshot({ path: path.join(OUT, '24-asmaca-tahmin.png') });
+
+    for (const letter of ['K', 'M', 'A', 'V', 'İ']) {
+      await b.click(`.hm-key[data-letter="${letter}"]`);
+      await sleep(300);
+    }
+    await b.waitForFunction("app.state.phase === 'reveal'", { timeout: 15000 });
+    await sleep(300);
+    const reveal = await b.evaluate(() => ({
+      points: app.state.hangman.points,
+      solved: app.state.hangman.solved,
+      answer: document.querySelector('.compare-item.truth p')?.textContent,
+      title: document.querySelector('.verdict h2')?.textContent,
+      score: app.state.players.find((p) => p.isMe).score,
+    }));
+    check(reveal.solved === true, 'Kelime çözüldü');
+    check(reveal.points === 30, '4 harf + bitirme = 30 puan', reveal.points);
+    check(reveal.answer === 'Mavi', 'Doğru cevap gösterildi');
+    check(reveal.title.includes('Bildin'), 'Sonuç başlığı doğru', reveal.title);
+    check(reveal.score === 30, 'Ahmet 30 puan');
+    await b.screenshot({ path: path.join(OUT, '25-asmaca-sonuc.png') });
+
+    console.log('\n2. soru: roller değişti');
+    await a.click('[data-action="continueReveal"]');
+    await b.click('[data-action="continueReveal"]');
+    await b.waitForFunction("app.state.phase === 'ask'", { timeout: 15000 });
+    await sleep(400);
+    const ask2 = await b.evaluate(() => ({
+      isMyAsk: app.state.hangman.isMyAsk,
+      asker: app.state.hangman.askerName,
+      counter: document.getElementById('playCounter')?.textContent,
+    }));
+    check(ask2.isMyAsk && ask2.asker === 'Ahmet', 'Bu kez Ahmet soruyor');
+    check(ask2.counter === 'Soru 2/2', 'Sayaç Soru 2/2', ask2.counter);
+
+    await b.type('#askQ', 'En sevdiğim hayvan?');
+    await b.type('#askA', 'Kedi');
+    await b.click('[data-action="submitAsk"]');
+    await a.waitForFunction("app.state.phase === 'guess' && app.state.hangman.isMyGuess", {
+      timeout: 15000,
+    });
+    await sleep(300);
+    for (const letter of ['K', 'E', 'D', 'İ']) {
+      await a.click(`.hm-key[data-letter="${letter}"]`);
+      await sleep(300);
+    }
+    await a.waitForFunction("app.state.phase === 'reveal'", { timeout: 15000 });
+    await sleep(300);
+    const reveal2 = await a.evaluate(() => ({
+      points: app.state.hangman.points,
+      score: app.state.players.find((p) => p.isMe).score,
+    }));
+    check(reveal2.points === 30, '2. soru da 30 puan', reveal2.points);
+    check(reveal2.score === 30, 'Ayşe 30 puan');
+
+    console.log('\nTur sonu');
+    await a.click('[data-action="continueReveal"]');
+    await b.click('[data-action="continueReveal"]');
     await a.waitForFunction("app.state.phase === 'roundEnd'", { timeout: 15000 });
     await sleep(400);
     const round = await a.evaluate(() => ({
-      word: app.state.hangman.word,
-      solved: app.state.hangman.solved,
-      finisher: app.state.hangman.finisher,
-      title: document.querySelector('.winner-card h2')?.textContent,
+      title: document.getElementById('roundTitle')?.textContent,
       scores: app.state.players.map((p) => [p.name, p.score]),
-      button: document.querySelector('[data-action="nextRound"]')?.textContent,
+      entries: document.querySelectorAll('#roundBody .result-item').length,
+      next: document.querySelector('[data-action="nextRound"]')?.textContent,
     }));
-    check(round.word === 'Kebap', 'Kelime sonuçta açıklandı', round.word);
-    check(round.solved === true, 'Kelime tamamlandı');
-    check(round.finisher === 1, 'Son harfi Ahmet buldu');
-    check(round.title.includes('tamamlandı'), 'Tur sonu başlığı doğru', round.title);
+    check(round.title.includes('Tur 1'), 'Tur sonu başlığı doğru', round.title);
     check(
-      round.scores.find(([name]) => name === 'Ayşe')[1] === 15 &&
-        round.scores.find(([name]) => name === 'Ahmet')[1] === 20,
-      'Puanlar doğru (Ayşe 15, Ahmet 20)',
+      round.scores.every(([, score]) => score === 30),
+      'Skorlar 30 - 30',
       JSON.stringify(round.scores)
     );
-    check(Boolean(round.button), 'Sonraki kelime butonu var');
-    await a.screenshot({ path: path.join(OUT, '24-asmaca-tur-sonu.png') });
+    check(round.entries === 2, '2 soru listelendi');
+    check(round.next.includes('Sonraki tur'), 'Sonraki tur butonu var');
+    await a.screenshot({ path: path.join(OUT, '26-asmaca-tur-sonu.png') });
 
     console.log('\nFinal');
     await a.click('[data-action="endGame"]');
     await a.waitForFunction("app.state.phase === 'final'", { timeout: 15000 });
-    await sleep(500);
+    await sleep(400);
     const final = await a.evaluate(() => ({
       title: document.querySelector('#finalBody .winner-card h2')?.textContent,
       entries: document.querySelectorAll('#finalBody .result-item').length,
     }));
-    check(final.title.includes('Ahmet'), 'Finalde kazanan Ahmet', final.title);
-    check(final.entries >= 1, 'Kelime geçmişi finalde var');
-    await a.screenshot({ path: path.join(OUT, '25-asmaca-final.png') });
+    check(final.title.includes('Berabere'), 'Final berabere', final.title);
+    check(final.entries === 2, 'Finalde 2 soru var');
+    await a.screenshot({ path: path.join(OUT, '27-asmaca-final.png') });
 
     console.log('\nHatalar:', errors.length ? errors : 'yok');
     if (errors.length) failures++;

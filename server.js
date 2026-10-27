@@ -12,7 +12,7 @@ const crypto = require('crypto');
 const express = require('express');
 const { Server } = require('socket.io');
 const QRCode = require('qrcode');
-const { HANGMAN_WORDS, TRUE_FALSE } = require('./game-data');
+const { TRUE_FALSE } = require('./game-data');
 
 const PORT = Number(process.env.PORT) || 4173;
 const HOST = process.env.HOST || undefined;
@@ -436,29 +436,57 @@ function stateFor(room, index) {
     }
   }
 
-  if (room.mode === 'hangman' && room.hangman && room.hangman.word) {
+  if (room.mode === 'hangman' && room.hangman) {
     const h = room.hangman;
-    const turnPlayer = room.players[h.turn];
-    state.hangman = {
+    const asker = h.asker;
+    const guesser = asker != null ? 1 - asker : null;
+    const base = {
       round: room.round,
-      mask: buildHangmanMask(h.word.word, h.revealed),
-      wrong: h.wrong.slice(),
-      lives: HANGMAN_LIVES - h.wrong.length,
-      turn: h.turn,
-      turnName: turnPlayer ? turnPlayer.name : '',
-      isMyTurn: h.turn === index,
-      solved: Boolean(h.solved),
-      failed: Boolean(h.failed),
-      hint: h.word.hint,
-      length: answerLetters(h.word.word).length,
-      word:
-        room.phase === 'roundEnd' || room.phase === 'final'
-          ? h.word.word
-          : undefined,
-      finisher: h.finisher,
+      step: h.step || 0,
+      number: (h.step || 0) + 1,
+      total: 2,
+      asker,
+      askerName:
+        asker != null && room.players[asker] ? room.players[asker].name : '',
+      guesser,
+      guesserName:
+        guesser != null && room.players[guesser] ? room.players[guesser].name : '',
+      isMyAsk: asker === index,
+      isMyGuess: guesser === index,
       roundScores: room.players.map((p) => p.roundScore),
       paused: !me.connected || !(rival && rival.connected),
     };
+
+    if (room.phase === 'ask') {
+      state.hangman = { ...base, phase: 'ask' };
+    } else if (room.phase === 'guess' && h.question) {
+      state.hangman = {
+        ...base,
+        phase: 'guess',
+        question: h.question.text,
+        mask: buildHangmanMask(h.question.answer, h.revealed),
+        wrong: h.wrong.slice(),
+        lives: HANGMAN_LIVES - h.wrong.length,
+        length: answerLetters(h.question.answer).length,
+      };
+    } else if (room.phase === 'reveal' && h.question) {
+      state.hangman = {
+        ...base,
+        phase: 'reveal',
+        question: h.question.text,
+        answer: h.question.answer,
+        mask: buildHangmanMask(h.question.answer, h.revealed),
+        wrong: h.wrong.slice(),
+        lives: HANGMAN_LIVES - h.wrong.length,
+        points: h.points,
+        solved: Boolean(h.solved),
+        failed: Boolean(h.failed),
+        readyNext: me.readyNext,
+        otherReadyNext: rival ? rival.readyNext : false,
+      };
+    } else {
+      state.hangman = { ...base, phase: room.phase };
+    }
   }
 
   if (room.mode === 'truefalse' && room.quiz && room.quiz.statements.length) {
@@ -666,76 +694,76 @@ function resetPlayersForGame(room) {
   });
 }
 
-function pickHangmanWord(room) {
-  if (!room.hangman) room.hangman = { used: new Set() };
-  if (process.env.HANGMAN_WORD) {
-    const forcedKey = String(process.env.HANGMAN_WORD).toLocaleUpperCase('tr-TR');
-    const forced = HANGMAN_WORDS.find(
-      (w) => w.word.toLocaleUpperCase('tr-TR') === forcedKey && !room.hangman.used.has(w.word)
-    );
-    if (forced) {
-      room.hangman.used.add(forced.word);
-      return forced;
-    }
-  }
-  let pool = HANGMAN_WORDS.filter((w) => !room.hangman.used.has(w.word));
-  if (!pool.length) {
-    room.hangman.used.clear();
-    pool = HANGMAN_WORDS.slice();
-  }
-  const word = pool[Math.floor(Math.random() * pool.length)];
-  room.hangman.used.add(word.word);
-  return word;
-}
-
 function startHangmanGame(room) {
   clearTimers(room);
   room.round = 1;
   room.history = [];
   resetPlayersForGame(room);
-  room.hangman = { used: new Set(), endTimer: null };
-  startHangmanRound(room);
+  room.hangman = { step: 0 };
+  startHangmanAsk(room);
 }
 
-function startHangmanRound(room) {
+function startHangmanAsk(room) {
   clearTimers(room);
-  room.phase = 'play';
-  room.players.forEach((p) => {
-    p.roundScore = 0;
-    p.readyNext = false;
-  });
-  const word = pickHangmanWord(room);
-  room.hangman.word = word;
-  room.hangman.revealed = new Set();
-  room.hangman.wrong = [];
-  room.hangman.turn = (room.round - 1) % 2;
-  room.hangman.solved = false;
-  room.hangman.failed = false;
-  room.hangman.finisher = null;
-  room.hangman.endTimer = null;
-  broadcast(room);
-}
-
-function finishHangmanRound(room) {
+  room.phase = 'ask';
   const h = room.hangman;
+  h.step = Math.min(h.step || 0, 1);
+  h.asker = (room.round - 1 + h.step) % 2;
+  h.question = null;
+  h.answer = null;
+  h.revealed = new Set();
+  h.wrong = [];
+  h.solved = false;
+  h.failed = false;
+  h.finisher = null;
+  h.points = 0;
+  if (h.step === 0) {
+    room.players.forEach((p) => {
+      p.roundScore = 0;
+    });
+  }
   room.players.forEach((p) => (p.readyNext = false));
   broadcast(room);
-  clearTimeout(h.endTimer);
-  h.endTimer = setTimeout(() => {
-    if (room.mode !== 'hangman' || room.phase !== 'play') return;
+}
+
+function finishHangmanQuestion(room) {
+  const h = room.hangman;
+  const guesser = 1 - h.asker;
+  room.history.push({
+    round: room.round,
+    step: h.step,
+    index: h.step + 1,
+    asker: h.asker,
+    guesser,
+    askerName: room.players[h.asker].name,
+    guesserName: room.players[guesser].name,
+    question: h.question.text,
+    answer: h.question.answer,
+    points: h.points,
+    solved: Boolean(h.solved),
+    failed: Boolean(h.failed),
+    wrongCount: h.wrong.length,
+    finisher: h.finisher,
+  });
+  room.phase = 'reveal';
+  room.players.forEach((p) => (p.readyNext = false));
+  clearTimers(room);
+  room.revealTimer = setTimeout(() => advanceHangmanStep(room), 30000);
+  broadcast(room);
+}
+
+function advanceHangmanStep(room) {
+  if (room.mode !== 'hangman' || room.phase !== 'reveal') return;
+  clearTimers(room);
+  const h = room.hangman;
+  h.step += 1;
+  if (h.step >= 2) {
     room.phase = 'roundEnd';
-    room.history.push({
-      round: room.round,
-      word: h.word.word,
-      hint: h.word.hint,
-      solved: Boolean(h.solved),
-      failed: Boolean(h.failed),
-      wrongCount: h.wrong.length,
-      finisher: h.finisher,
-      awards: room.players.map((p) => p.roundScore),
-    });
+    room.players.forEach((p) => (p.readyNext = false));
     broadcast(room);
-  }, 1000);
+  } else {
+    startHangmanAsk(room);
+  }
 }
 
 function pickQuizStatements(room, count) {
@@ -1010,14 +1038,45 @@ io.on('connection', (socket) => {
     finalizeGuess(room, answer, false);
   });
 
+  socket.on('hangman_ask', ({ text, answer } = {}) => {
+    const room = roomOf(socket);
+    const me = meOf(room, socket);
+    if (!room || !me) return;
+    if (room.mode !== 'hangman' || room.phase !== 'ask') return;
+    const h = room.hangman;
+    if (!h || h.asker !== me.index) return;
+
+    const question = cleanText(text, 120);
+    const truth = cleanText(answer, 60);
+    if (question.length < 3) {
+      return sendError(socket, 'bad_question', 'Önce sorunu yaz.');
+    }
+    const letterCount = truth.replace(/[^A-Za-zÇĞİÖŞÜçğıöşü]/g, '').length;
+    if (letterCount < 2 || letterCount > 16) {
+      return sendError(socket, 'bad_answer', 'Cevap 2-16 harf arasında olmalı.');
+    }
+
+    h.question = { text: question, answer: truth, asker: me.index };
+    h.answer = truth;
+    h.revealed = new Set();
+    h.wrong = [];
+    h.solved = false;
+    h.failed = false;
+    h.finisher = null;
+    h.points = 0;
+    room.phase = 'guess';
+    room.players.forEach((p) => (p.readyNext = false));
+    broadcast(room);
+  });
+
   socket.on('hangman_letter', ({ letter } = {}) => {
     const room = roomOf(socket);
     const me = meOf(room, socket);
     if (!room || !me) return;
-    if (room.mode !== 'hangman' || room.phase !== 'play') return;
+    if (room.mode !== 'hangman' || room.phase !== 'guess') return;
     const h = room.hangman;
-    if (!h || !h.word || h.solved || h.failed) return;
-    if (h.turn !== me.index) return;
+    if (!h || !h.question || h.solved || h.failed) return;
+    if (me.index !== 1 - h.asker) return;
 
     const clean = String(letter || '')
       .trim()
@@ -1025,30 +1084,31 @@ io.on('connection', (socket) => {
     if (!/^[A-ZÇĞİÖŞÜ]$/.test(clean)) return;
     if (h.revealed.has(clean) || h.wrong.includes(clean)) return;
 
-    const answer = String(h.word.word).toLocaleUpperCase('tr-TR');
+    const answer = String(h.question.answer).toLocaleUpperCase('tr-TR');
     if (answer.includes(clean)) {
       h.revealed.add(clean);
       me.roundScore += HANGMAN_LETTER_POINTS;
       me.totalScore += HANGMAN_LETTER_POINTS;
-      if (hangmanSolved(h.word.word, h.revealed)) {
+      h.points += HANGMAN_LETTER_POINTS;
+      if (hangmanSolved(h.question.answer, h.revealed)) {
         h.solved = true;
         h.finisher = me.index;
         me.roundScore += HANGMAN_FINISH_BONUS;
         me.totalScore += HANGMAN_FINISH_BONUS;
+        h.points += HANGMAN_FINISH_BONUS;
         me.totalCorrect += 1;
-        finishHangmanRound(room);
+        finishHangmanQuestion(room);
         return;
       }
     } else {
       h.wrong.push(clean);
       if (h.wrong.length >= HANGMAN_LIVES) {
         h.failed = true;
-        finishHangmanRound(room);
+        finishHangmanQuestion(room);
         return;
       }
     }
 
-    h.turn = 1 - h.turn;
     broadcast(room);
   });
 
@@ -1088,6 +1148,16 @@ io.on('connection', (socket) => {
     me.readyNext = true;
     const rival = other(room, me.index);
 
+    if (room.mode === 'hangman') {
+      if (room.phase !== 'reveal') return;
+      me.readyNext = true;
+      if (rival && rival.readyNext) {
+        advanceHangmanStep(room);
+      } else {
+        broadcast(room);
+      }
+      return;
+    }
     if (room.mode === 'truefalse') {
       if (rival && rival.readyNext) {
         nextQuizStatement(room);
@@ -1096,7 +1166,6 @@ io.on('connection', (socket) => {
       }
       return;
     }
-    if (room.mode === 'hangman') return;
 
     if (rival && rival.readyNext) {
       broadcast(room);
@@ -1116,8 +1185,10 @@ io.on('connection', (socket) => {
     if (rival && rival.readyNext) {
       room.round += 1;
       if (room.mode === 'text') resetToSetup(room);
-      else if (room.mode === 'hangman') startHangmanRound(room);
-      else startQuizRound(room);
+      else if (room.mode === 'hangman') {
+        room.hangman.step = 0;
+        startHangmanAsk(room);
+      } else startQuizRound(room);
     } else {
       broadcast(room);
     }
@@ -1126,7 +1197,15 @@ io.on('connection', (socket) => {
   socket.on('end_game', () => {
     const room = roomOf(socket);
     if (!room) return;
-    if (room.phase !== 'roundEnd' && room.phase !== 'play' && room.phase !== 'reveal') return;
+    if (
+      room.phase !== 'roundEnd' &&
+      room.phase !== 'play' &&
+      room.phase !== 'reveal' &&
+      room.phase !== 'ask' &&
+      room.phase !== 'guess'
+    ) {
+      return;
+    }
     finishGame(room);
   });
 

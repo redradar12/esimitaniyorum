@@ -4,7 +4,7 @@ Sevgilinle / eşinle **iki ayrı telefondan**, aynı anda oynanan bir "beni ne k
 
 Her oyuncu kendisi hakkında **5 soru ve cevabını** yazar. Sırayla eşinin sorularına cevap verirsin, puanlar hesaplanır, tur biter ve **yeni 5 soruya** geçilir. Soru bulamazsan **10 kategorideki 200+ hazır sorudan** otomatik seçilir.
 
-Üç ayrı oyun modu var: **⌨️ Soru-Cevap** (5 soru hazırlanır), **🔤 Adam Asmaca** (sistem kelime verir, sırayla harf seçilir) ve **✅ Doğru mu Yanlış mı?** (sistem ifade sorar, ikiniz de cevaplarsınız). Son iki modda **soru hazırlama yoktur**; modu oda kurarken seçersin, eşin katılınca oyun doğrudan başlar.
+Üç ayrı oyun modu var: **⌨️ Soru-Cevap** (5 soru hazırlanır), **🔤 Adam Asmaca** (sırayla birbirinize soru sorarsınız, cevabı harf harf tahmin edersiniz) ve **✅ Doğru mu Yanlış mı?** (sistem ifade sorar, ikiniz de cevaplarsınız). Adam Asmaca ve Doğru/Yanlış’ta **hazır soru ekranı yoktur**; modu oda kurarken seçersin, eşin katılınca oyun doğrudan başlar.
 
 Arayüz Türkçe, mobil öncelikli ve koyu romantik temalı. Kurulum gerektirmeyen vanilla JavaScript + Node.js/Socket.IO ile yazıldı.
 
@@ -51,7 +51,7 @@ Varsayılan adres: **http://localhost:4173**
 | Mod | Nasıl oynanır |
 | --- | --- |
 | ⌨️ **Soru-Cevap** | 5 soru hazırlanır. Eşinin cevabını yazarak tahmin edersin. Her soru için 45 saniye. |
-| 🔤 **Adam Asmaca** | Hazırlık yok. Sistem kelime + ipucu verir. **Sırayla** harf seçilir; 6 ortak can. Doğru harf seçene **+5**, kelimeyi bitirene **+10**. 6 yanlışta kelime kaybedilir. |
+| 🔤 **Adam Asmaca** | Hazırlık yok. **Sırayla birbirinize soru sorarsınız:** biri kendisiyle ilgili soru + cevap yazar, diğeri cevabı harf harf tahmin eder; sonra roller değişir. Her soruda 6 can; doğru harf **+5**, cevabı bitiren **+10**. 6 yanlışta o sorudan puan yok. |
 | ✅ **Doğru mu Yanlış mı?** | Hazırlık yok. Sistem genel kültür/ilişki ifadesi sorar; **ikiniz de** Doğru/Yanlış dersiniz. 15 saniye; doğru **+10**, ikisi de doğruysa hızlı olan **+2** ekstra. |
 
 ---
@@ -62,8 +62,8 @@ Varsayılan adres: **http://localhost:4173**
 | --- | --- |
 | **Lobi** | Ana sayfada mod seçilir; oda kodu + QR kod oluşur, eşin katılır. |
 | **Soru hazırlığı** | Yalnızca **Soru-Cevap** modunda. Herkes kendisi hakkında 5 soru ve cevabını yazar. **Karışık** kategori veya 10 kategoriden biri seçilir; “Tümünü gör” ile 203 soru aranır. |
-| **Oyun** | Soru-Cevap’ta cevap yazılır; Adam Asmaca’da sırayla harf seçilir; Doğru/Yanlış’ta iki oyuncu da karar verir. |
-| **Tur sonu** | Soru-Cevap’ta 10 soru, Adam Asmaca’da 1 kelime, Doğru/Yanlış’ta 10 ifade biter. Skorlar ve geçmiş gösterilir; iki taraf da devam derse yeni tur başlar. |
+| **Oyun** | Soru-Cevap’ta cevap yazılır; Adam Asmaca’da sırayla soru sorulur ve cevap harf harf tahmin edilir; Doğru/Yanlış’ta iki oyuncu da karar verir. |
+| **Tur sonu** | Soru-Cevap’ta 10 soru, Adam Asmaca’da **2 soru (bir sen bir eşin)**, Doğru/Yanlış’ta 10 ifade biter. Skorlar ve geçmiş gösterilir; iki taraf da devam derse yeni tur başlar. |
 | **Final** | "Bitir" ile toplam puanlar, kazanan ve (quizde) uyum yüzdesi gösterilir. "Yeniden oyna" ile sıfırdan başlanır. |
 
 ### Puanlama
@@ -77,7 +77,7 @@ Varsayılan adres: **http://localhost:4173**
 | Kelime eşleşmesi / küçük yazım farkı | **6** |
 | Bilemedi veya süre doldu | **0** |
 
-**Adam Asmaca:** her doğru harf **+5**, kelimeyi bitiren **+10**. 6 yanlışta kelime kaybedilir; o ana kadar kazanılan harf puanları kalır.
+**Adam Asmaca:** doğru harf **+5**, cevabı bitiren **+10**. 6 yanlışta o soru kaybedilir; o ana kadar kazanılan harf puanları kalır.
 **Doğru/Yanlış:** doğru karar **10**, ikisi de doğruysa ilk cevaplayan **+2**; yanlış veya boş **0**.
 
 Türkçe karakterler ve büyük/küçük harf farkı önemsenmez (`İ`/`i`, `Ş`/`ş` gibi).
@@ -89,7 +89,7 @@ Türkçe karakterler ve büyük/küçük harf farkı önemsenmez (`İ`/`i`, `Ş`
 ```
 esimitanıyorum/
 ├─ server.js              # Express + Socket.IO oyun sunucusu (oda, tur, puanlama)
-├─ game-data.js           # Adam Asmaca kelimeleri + doğru/yanlış ifadeleri
+├─ game-data.js           # Doğru/yanlış ifadeleri ve yedek kelime bankası
 ├─ public/
 │  ├─ index.html          # Ekranlar ve modal
 │  ├─ styles.css          # Mobil öncelikli tema

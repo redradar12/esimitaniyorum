@@ -36,7 +36,7 @@ const MODES = {
   hangman: {
     emoji: '🔤',
     label: 'Adam Asmaca',
-    desc: 'Sistem kelime verir; sırayla harf seçin. 6 ortak can.',
+    desc: 'Sırayla birbirinize soru sorun; cevabı harf harf tahmin edin.',
   },
   truefalse: {
     emoji: '✅',
@@ -319,7 +319,7 @@ function route() {
 
   const rival = (s.players || []).find((p) => !p.isMe);
   const paused =
-    (s.phase === 'play' || s.phase === 'reveal') && rival && !rival.connected;
+    ['play', 'reveal', 'ask', 'guess'].includes(s.phase) && rival && !rival.connected;
   $('pausedOverlay').hidden = !paused;
   if (paused) {
     $('pausedText').textContent = `${rival.name} bağlantısı bekleniyor…`;
@@ -342,8 +342,18 @@ function routeHangman(s) {
     renderHangmanRoundEnd(s);
     return;
   }
+  if (s.phase === 'reveal') {
+    showScreen('play');
+    renderHangmanReveal(s);
+    return;
+  }
+  if (s.phase === 'ask') {
+    showScreen('play');
+    renderHangmanAsk(s);
+    return;
+  }
   showScreen('play');
-  renderHangmanPlay(s);
+  renderHangmanGuess(s);
 }
 
 function hangmanMaskHtml(mask) {
@@ -368,18 +378,84 @@ function hangmanKeyboardHtml(h, enabled) {
   }).join('')}</div>`;
 }
 
-function renderHangmanPlay(s) {
+function renderHangmanAsk(s) {
   const h = s.hangman;
   $('playTitle').textContent = 'Adam Asmaca';
-  $('playCounter').textContent = `Kelime ${s.round}`;
+  $('playCounter').textContent = `Soru ${h.number}/${h.total}`;
 
-  const banner = h.solved
-    ? `<div class="turn-banner go">🎉 <b>Kelime tamamlandı!</b> Sonuçlar geliyor…</div>`
-    : h.failed
-      ? `<div class="turn-banner wait">💔 <b>6 yanlış!</b> Kelimeyi bilemediniz.</div>`
-      : h.isMyTurn
-        ? `<div class="turn-banner go">🎯 <b>Sıra sende!</b> Bir harf seç.</div>`
-        : `<div class="turn-banner wait">⏳ <b>Sıra ${esc(h.turnName)}'de.</b> Harf seçmesini bekle.</div>`;
+  if (!h.isMyAsk) {
+    $('playBody').innerHTML = `
+      ${scorebarHtml(s)}
+      <div class="turn-banner wait">⏳ <b>Sıra ${esc(h.askerName)}'de.</b> Soru hazırlıyor.</div>
+      <div class="card waiting-card">
+        <span class="big">✍️</span>
+        <h3>${esc(h.askerName)} soru hazırlıyor…</h3>
+        <p>Soru gelince harf harf tahmin edeceksin.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const suggestions = suggestionsFor('karisik', 3, []);
+  $('playBody').innerHTML = `
+    ${scorebarHtml(s)}
+    <div class="guide">
+      <span class="g-emoji">✍️</span>
+      <div>
+        <b>Şimdi senin sıran: bir soru sor.</b>
+        <p>Kendinle ilgili bir soru yaz ve doğru cevabını ekle. Eşin harf harf tahmin edecek.</p>
+      </div>
+    </div>
+    <div class="card">
+      <label class="field-label" for="askQ">Sorun</label>
+      <input id="askQ" type="text" maxlength="120" placeholder="Örn. En sevdiğim renk ne?" />
+
+      <div class="suggest-head"><span>Öneriler</span></div>
+      <div class="chip-list">
+        ${suggestions
+          .map(
+            (q) =>
+              `<button type="button" class="suggest-chip" data-action="askSuggest" data-q="${esc(q)}">${esc(q)}</button>`
+          )
+          .join('')}
+      </div>
+
+      <label class="field-label" for="askA">Doğru cevap</label>
+      <input id="askA" type="text" maxlength="60" placeholder="Örn. Mavi" />
+      <p class="hint">Cevap 2-16 harf olmalı. Eşin 6 canla harf harf tahmin edecek.</p>
+      <p class="hint error" id="askError" hidden></p>
+      <button type="button" class="btn btn-primary btn-block" data-action="submitAsk" style="margin-top:12px">
+        Soruyu gönder 💌
+      </button>
+    </div>
+  `;
+
+  const askQuestion = $('askQ');
+  const askAnswer = $('askA');
+  if (askQuestion && askAnswer) {
+    askQuestion.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        askAnswer.focus();
+      }
+    });
+    askAnswer.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        submitHangmanAsk();
+      }
+    });
+  }
+}
+
+function renderHangmanGuess(s) {
+  const h = s.hangman;
+  $('playTitle').textContent = 'Adam Asmaca';
+  $('playCounter').textContent = `Soru ${h.number}/${h.total}`;
+
+  const banner = h.isMyGuess
+    ? `<div class="turn-banner go">🎯 <b>Sıra sende!</b> ${esc(genitive(h.askerName))} cevabını harf harf bul.</div>`
+    : `<div class="turn-banner wait">⏳ <b>Sıra ${esc(h.guesserName)}'de.</b> Senin sorunu harf harf çözüyor.</div>`;
 
   const wrong = h.wrong.length
     ? `<div class="hm-wrong">Yanlış harfler: ${h.wrong.map((l) => esc(l)).join(' ')}</div>`
@@ -389,46 +465,100 @@ function renderHangmanPlay(s) {
     ${scorebarHtml(s)}
     ${banner}
     <div class="card question-card">
-      <div class="q-owner">🔤 ${esc(h.hint)} · ${h.length} harf</div>
+      <div class="q-owner">💗 ${esc(genitive(h.askerName))} sorusu</div>
+      <h2 class="question-text">${esc(h.question)}</h2>
       ${hangmanMaskHtml(h.mask)}
       <div class="hm-lives">${hangmanHearts(h.lives)}<span>${h.lives} can</span></div>
       ${wrong}
     </div>
-    <div class="card guess-box">
-      <div class="guess-label">${
-        h.isMyTurn && !h.solved && !h.failed ? 'Bir harf seç' : 'Klavye'
-      }</div>
-      ${hangmanKeyboardHtml(h, h.isMyTurn && !h.solved && !h.failed)}
+    ${
+      h.isMyGuess
+        ? `<div class="card guess-box">
+             <div class="guess-label">Bir harf seç</div>
+             ${hangmanKeyboardHtml(h, true)}
+           </div>`
+        : `<div class="card">
+             <div class="owner-wait">
+               <div class="avatar alt">${esc(initial(h.guesserName))}</div>
+               <p>${esc(h.guesserName)} harf seçiyor…</p>
+               <div class="typing">
+                 <span class="b"></span><span class="b"></span><span class="b"></span>
+               </div>
+             </div>
+           </div>`
+    }
+  `;
+}
+
+function renderHangmanReveal(s) {
+  const h = s.hangman;
+  $('playTitle').textContent = 'Adam Asmaca';
+  $('playCounter').textContent = `Soru ${h.number}/${h.total}`;
+
+  const solved = Boolean(h.solved);
+  const title = h.isMyGuess
+    ? solved
+      ? 'Bildin!'
+      : 'Bilemedin'
+    : solved
+      ? `${esc(h.guesserName)} bildi!`
+      : `${esc(h.guesserName)} bilemedi`;
+  const pointsText = h.points > 0 ? `+${h.points} puan` : '0 puan';
+
+  const readyNote = s.readyNext
+    ? `${esc(s.rivalName || 'Eşin')} de basınca devam edilecek…`
+    : `İkiniz de Devam’a basınca ${
+        h.number >= 2 ? 'tur sonuçları gelecek' : `${h.number + 1}. soruya geçilecek`
+      }.`;
+
+  $('playBody').innerHTML = `
+    ${scorebarHtml(s)}
+    <div class="card question-card">
+      <div class="verdict">
+        <span class="verdict-emoji">${solved ? '🎯' : '💔'}</span>
+        <h2>${title}</h2>
+        <span class="points ${h.points > 0 ? '' : 'zero'}">${pointsText}</span>
+      </div>
+      <p class="q-sub" style="margin-top:14px">${esc(h.question)}</p>
+      ${hangmanMaskHtml(h.mask)}
+      <div class="hm-lives">${hangmanHearts(h.lives)}<span>${h.lives} can</span></div>
+      ${
+        h.wrong.length
+          ? `<div class="hm-wrong">Yanlış harfler: ${h.wrong.map((l) => esc(l)).join(' ')}</div>`
+          : ''
+      }
+      <div class="compare" style="grid-template-columns:1fr">
+        <div class="compare-item truth">
+          <span>Doğru cevap</span>
+          <p>${esc(h.answer)}</p>
+        </div>
+      </div>
     </div>
+    <button class="btn btn-primary btn-block" data-action="continueReveal" ${
+      s.readyNext ? 'disabled' : ''
+    }>${s.readyNext ? 'Eşin bekleniyor…' : 'Devam →'}</button>
+    <p class="ready-note">${readyNote}</p>
   `;
 }
 
 function renderHangmanRoundEnd(s) {
-  const h = s.hangman;
   const r = s.results;
-  $('roundTitle').textContent = `Kelime ${s.round}`;
+  $('roundTitle').textContent = `Tur ${s.round} bitti`;
 
   const playersWithRound = r.players.map((p, i) => ({
     ...p,
     round: s.players[i] ? s.players[i].roundScore : 0,
   }));
-  const finisher =
-    h.finisher != null && s.players[h.finisher] ? s.players[h.finisher].name : '';
 
   const readyBtn = s.readyNext
     ? `<button class="btn btn-primary" disabled>Eşin bekleniyor…</button>`
-    : `<button class="btn btn-primary" data-action="nextRound">Sonraki kelime →</button>`;
+    : `<button class="btn btn-primary" data-action="nextRound">Sonraki tur →</button>`;
 
   $('roundBody').innerHTML = `
-    <div class="card winner-card">
-      <span class="trophy">${h.solved ? '🎉' : '💔'}</span>
-      <h2>${h.solved ? 'Kelime tamamlandı!' : 'Kelimeyi bilemediniz'}</h2>
-      <p class="word-reveal">${esc(h.word || '')}</p>
-      <p class="hint">${
-        h.solved
-          ? `${esc(finisher)} son harfi buldu.`
-          : '6 yanlış hakkı doldu.'
-      }</p>
+    <div class="card" style="text-align:center;padding:20px">
+      <div style="font-size:2.2rem">🎉</div>
+      <h2 style="margin:0;font-size:1.3rem">Tur ${s.round} tamam!</h2>
+      <p class="hint" style="margin-top:6px">Bir soru sen, bir soru eşin. İşte sonuçlar.</p>
     </div>
 
     ${scoreCardsHtml({ players: playersWithRound }, true)}
@@ -439,35 +569,66 @@ function renderHangmanRoundEnd(s) {
     </div>
     <p class="ready-note">${
       s.readyNext
-        ? 'Sen hazırsın. Eşin de basınca yeni kelime gelecek.'
+        ? 'Sen hazırsın. Eşin de basınca yeni tur gelecek.'
         : s.otherReadyNext
-          ? 'Eşin hazır! Sen de “Sonraki kelime”ye bas.'
-          : 'Yeni kelime için ikiniz de “Sonraki kelime”ye basın.'
+          ? 'Eşin hazır! Sen de “Sonraki tur”a bas.'
+          : 'Yeni tur için ikiniz de “Sonraki tur”a basın.'
     }</p>
 
-    <div class="section-title">Kelimeler</div>
-    ${hangmanEntriesHtml(r.entries, s.players)}
+    <div class="section-title">Bu turun soruları</div>
+    ${hangmanEntriesHtml(r.roundEntries)}
   `;
 }
 
-function hangmanEntriesHtml(entries, players) {
-  if (!entries.length) return '<p class="hint">Henüz kelime yok.</p>';
+function hangmanEntriesHtml(entries) {
+  if (!entries.length) return '<p class="hint">Henüz soru yok.</p>';
   return `<div class="result-list">
     ${entries
-      .map((e) => {
-        const awards = players
-          .map((p, i) => `${p.isMe ? 'Sen' : esc(p.name)} +${(e.awards && e.awards[i]) || 0}`)
-          .join(' · ');
-        return `<div class="result-item">
+      .map(
+        (e) => `<div class="result-item">
           <div class="mark ${e.solved ? 'ok' : 'no'}">${e.solved ? '✅' : '✖'}</div>
           <div class="ri-body">
-            <div class="ri-q"><span class="ri-no">${esc(e.round)}.</span> ${esc(e.word)}</div>
-            <div class="ri-a">${e.solved ? 'Tamamlandı' : '6 yanlış'} · ${awards}</div>
+            <div class="ri-q"><span class="ri-no">${esc(e.index)}.</span> ${esc(e.question)}</div>
+            <div class="ri-a">Tur ${esc(e.round)} · ${esc(e.askerName)} sordu · ${esc(
+          e.guesserName
+        )} +${e.points} puan · Doğru: <b>${esc(e.answer)}</b></div>
           </div>
-        </div>`;
-      })
+        </div>`
+      )
       .join('')}
   </div>`;
+}
+
+function submitHangmanAsk() {
+  const s = app.state;
+  if (!s || s.mode !== 'hangman' || s.phase !== 'ask' || !s.hangman || !s.hangman.isMyAsk) {
+    return;
+  }
+  const question = ($('askQ') && $('askQ').value ? $('askQ').value : '').trim();
+  const answer = ($('askA') && $('askA').value ? $('askA').value : '').trim();
+  const errorBox = $('askError');
+
+  const fail = (message) => {
+    if (errorBox) {
+      errorBox.textContent = message;
+      errorBox.hidden = false;
+    } else {
+      toast(message);
+    }
+  };
+
+  if (question.length < 3) return fail('Önce sorunu yaz.');
+  const letters = answer.replace(/[^A-Za-zÇĞİÖŞÜçğıöşü]/g, '').length;
+  if (letters < 2 || letters > 16) {
+    return fail('Cevap 2-16 harf arasında olmalı.');
+  }
+
+  socket.emit('hangman_ask', { text: question, answer });
+  const button = document.querySelector('[data-action="submitAsk"]');
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Gönderiliyor…';
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -676,8 +837,8 @@ function renderStandaloneFinal(s) {
 
     ${scoreCardsHtml(r, false)}
 
-    <div class="section-title">${isQuiz ? 'Tüm ifadeler' : 'Kelimeler'}</div>
-    ${isQuiz ? quizEntriesHtml(r.entries, s.players) : hangmanEntriesHtml(r.entries, s.players)}
+    <div class="section-title">${isQuiz ? 'Tüm ifadeler' : 'Sorular'}</div>
+    ${isQuiz ? quizEntriesHtml(r.entries, s.players) : hangmanEntriesHtml(r.entries)}
 
     <div class="btn-row" style="margin-top:20px">
       <button class="btn btn-primary" data-action="playAgain" ${
@@ -1826,7 +1987,7 @@ document.addEventListener('click', (event) => {
         !app.state ||
         app.state.mode !== 'hangman' ||
         !app.state.hangman ||
-        !app.state.hangman.isMyTurn
+        !app.state.hangman.isMyGuess
       ) {
         break;
       }
@@ -1836,6 +1997,17 @@ document.addEventListener('click', (event) => {
       socket.emit('hangman_letter', { letter });
       break;
     }
+    case 'askSuggest': {
+      const input = $('askQ');
+      if (input) {
+        input.value = btn.dataset.q || '';
+        input.focus();
+      }
+      break;
+    }
+    case 'submitAsk':
+      submitHangmanAsk();
+      break;
     case 'quizAnswer': {
       if (!app.state || app.state.mode !== 'truefalse' || app.state.phase !== 'play') break;
       socket.emit('quiz_answer', { value: btn.dataset.value === 'true' });
