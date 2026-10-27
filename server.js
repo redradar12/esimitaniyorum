@@ -294,6 +294,7 @@ function makePlayer(name, index) {
     index,
     socketId: null,
     connected: false,
+    voice: false,
     questions: [],
     ready: false,
     readyNext: false,
@@ -325,6 +326,7 @@ function playerPayload(p) {
     id: p.id,
     name: p.name,
     connected: p.connected,
+    voice: Boolean(p.voice),
     ready: p.ready,
     readyNext: p.readyNext,
     score: p.totalScore,
@@ -1140,6 +1142,37 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('voice_join', () => {
+    const room = roomOf(socket);
+    const me = meOf(room, socket);
+    if (!room || !me) return;
+    me.voice = true;
+    broadcast(room);
+    socket.to(room.code).emit('toast', { text: `${me.name} sesli sohbete katıldı 🎙️` });
+  });
+
+  socket.on('voice_leave', () => {
+    const room = roomOf(socket);
+    const me = meOf(room, socket);
+    if (!room || !me) return;
+    me.voice = false;
+    broadcast(room);
+    socket.to(room.code).emit('toast', { text: `${me.name} sesli sohbetten ayrıldı` });
+  });
+
+  socket.on('voice_signal', ({ sdp, candidate } = {}) => {
+    const room = roomOf(socket);
+    const me = meOf(room, socket);
+    if (!room || !me) return;
+    const rival = other(room, me.index);
+    if (!rival || !rival.socketId) return;
+    io.to(rival.socketId).emit('voice_signal', {
+      sdp: sdp || null,
+      candidate: candidate || null,
+      from: me.index,
+    });
+  });
+
   socket.on('ready_next', () => {
     const room = roomOf(socket);
     const me = meOf(room, socket);
@@ -1273,6 +1306,7 @@ io.on('connection', (socket) => {
       p.totalScore = 0;
       p.roundScore = 0;
       p.totalCorrect = 0;
+      p.voice = false;
     });
     broadcast(room);
   });
@@ -1285,6 +1319,7 @@ io.on('connection', (socket) => {
 
     me.connected = false;
     me.socketId = null;
+    me.voice = false;
 
     if (room.phase === 'play' && room.guessTimer) {
       clearTimeout(room.guessTimer);

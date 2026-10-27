@@ -188,6 +188,7 @@
         <li><b>5 soru hazırla.</b> Kendinle ilgili 5 soru ve cevabını yaz. 10 kategoride 200+ hazır soru var; “Tümünü gör” ile hepsine bakabilir, arayabilirsin.</li>
         <li><b>Moda göre oyna.</b> Soru-Cevap’ta cevabı yazarsın, Adam Asmaca’da harf seçersin, Doğru/Yanlış’ta karar verirsin.</li>
         <li><b>Puan toplayın.</b> Doğru cevaplar puan kazandırır. Tur bitince ikiniz de yeni 5 soru hazırlayıp devam edersiniz.</li>
+        <li><b>Sesli sohbet (isteğe bağlı).</b> Sağ alttaki 🎙️ düğmesinden mikrofonu aç; eşin de açınca konuşabilirsiniz.</li>
       </ol>
       <p class="hint">İpucu: Cevapları kısa tut (ör. “Adana kebap”, “mavi”). Böylece eşleşmesi kolay olur.</p>
       <button id="helpOk" class="btn btn-primary">Anladım</button>
@@ -222,6 +223,27 @@
       <button class="btn" data-action="leave">Odadan ayrıl</button>
     </div>
   </div>
+
+  <!-- ================= SESLİ SOHBET ================= -->
+  <button id="voiceFab" class="voice-fab" data-action="voiceToggle" aria-label="Sesli sohbet" hidden>
+    <span id="voiceFabIcon">🎙️</span>
+    <span id="voiceFabDot" class="voice-dot"></span>
+  </button>
+
+  <div id="voicePanel" class="voice-panel" hidden>
+    <div class="voice-head">
+      <b>Sesli sohbet</b>
+      <button class="icon-btn" data-action="voiceClose" aria-label="Kapat">✕</button>
+    </div>
+    <p id="voiceStatus" class="voice-status">Mikrofon kapalı.</p>
+    <button id="voiceJoinBtn" class="btn btn-primary btn-block" data-action="voiceJoin">🎙️ Mikrofonu aç</button>
+    <button id="voiceMuteBtn" class="btn btn-block" data-action="voiceMute" hidden>Sessize al</button>
+    <button id="voiceUnlockBtn" class="btn btn-block" data-action="voiceUnlock" hidden>Sesi aç</button>
+    <button id="voiceLeaveBtn" class="btn btn-ghost btn-block" data-action="voiceLeave" hidden>Görüşmeyi bitir</button>
+    <p class="hint">Ses doğrudan eşine gider, kaydedilmez. Kulaklık echo’yu azaltır.</p>
+  </div>
+
+  <audio id="voiceAudio" autoplay playsinline></audio>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="/questions.js"></script>

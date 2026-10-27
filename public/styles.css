@@ -29,6 +29,10 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
@@ -1805,6 +1809,107 @@ input[type="text"]:focus {
   font-size: 0.76rem;
   color: var(--muted);
   margin-top: 3px;
+}
+
+/* ---------------- Sesli sohbet ---------------- */
+
+.voice-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 96;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 1.3rem;
+  color: var(--text);
+  background: linear-gradient(145deg, #2a103f, #1b0d2b);
+  border: 1px solid rgba(255, 95, 143, 0.45);
+  box-shadow: 0 16px 30px -14px #000;
+  cursor: pointer;
+}
+
+.voice-fab[hidden] {
+  display: none;
+}
+
+.voice-fab.on {
+  background: linear-gradient(145deg, rgba(99, 226, 192, 0.28), rgba(255, 95, 143, 0.2));
+  border-color: rgba(99, 226, 192, 0.65);
+}
+
+.voice-fab.muted {
+  border-color: rgba(255, 107, 107, 0.55);
+}
+
+.voice-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.voice-dot.connected {
+  background: var(--mint);
+  box-shadow: 0 0 8px var(--mint);
+}
+
+.voice-panel {
+  position: fixed;
+  right: 16px;
+  bottom: calc(78px + env(safe-area-inset-bottom));
+  z-index: 97;
+  width: min(300px, calc(100vw - 32px));
+  padding: 14px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #241133, #170a26);
+  border: 1px solid var(--line);
+  box-shadow: 0 24px 50px -20px #000;
+}
+
+.voice-panel[hidden] {
+  display: none;
+}
+
+.voice-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.voice-head .icon-btn {
+  width: 32px;
+  height: 32px;
+  font-size: 0.9rem;
+  border-radius: 10px;
+}
+
+.voice-status {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.voice-panel .btn {
+  margin-bottom: 8px;
+  padding: 12px;
+  font-size: 0.9rem;
+}
+
+.voice-panel .hint {
+  margin: 2px 0 0;
+  font-size: 0.7rem;
+}
+
+body.in-room .app {
+  padding-bottom: calc(92px + env(safe-area-inset-bottom));
 }
 
 /* ---------------- Toast / modal / overlay ---------------- */

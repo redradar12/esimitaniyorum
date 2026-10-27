@@ -196,6 +196,259 @@ const app = {
 
 let currentScreen = 'home';
 
+const voice = {
+  active: false,
+  muted: false,
+  localStream: null,
+  pc: null,
+  remoteStream: null,
+  pendingCandidates: [],
+  audioBlocked: false,
+};
+
+function voiceSecure() {
+  return (
+    location.protocol === 'https:' ||
+    ['localhost', '127.0.0.1'].includes(location.hostname)
+  );
+}
+
+function voiceSupported() {
+  return Boolean(navigator.mediaDevices && window.RTCPeerConnection);
+}
+
+function updateVoiceUi() {
+  const s = app.state;
+  const inRoom = Boolean(s && s.code);
+  document.body.classList.toggle('in-room', inRoom);
+
+  const fab = $('voiceFab');
+  if (fab) {
+    fab.hidden = !inRoom;
+    fab.classList.toggle('on', voice.active && !voice.muted);
+    fab.classList.toggle('muted', voice.active && voice.muted);
+  }
+  const icon = $('voiceFabIcon');
+  if (icon) icon.textContent = voice.muted ? '🔇' : '🎙️';
+  const dot = $('voiceFabDot');
+  if (dot) {
+    dot.className =
+      'voice-dot' +
+      (voice.pc && voice.pc.connectionState === 'connected' ? ' connected' : '');
+  }
+
+  const rival = s && s.players ? s.players.find((p) => !p.isMe) : null;
+  const connected = Boolean(voice.pc && voice.pc.connectionState === 'connected');
+  const status = $('voiceStatus');
+  const joinBtn = $('voiceJoinBtn');
+  const muteBtn = $('voiceMuteBtn');
+  const leaveBtn = $('voiceLeaveBtn');
+  const unlockBtn = $('voiceUnlockBtn');
+
+  let text = 'Mikrofon kapalı. Sesli sohbet için başlat.';
+  if (voice.active) {
+    if (!rival) text = 'Eşin odada değil.';
+    else if (!rival.voice) text = 'Mikrofonun açık. Eşinin katılmasını bekliyorsun.';
+    else if (connected) text = 'Sesli sohbet bağlı. 🎙️';
+    else text = 'Bağlanıyor…';
+    if (voice.muted) text = 'Mikrofonun sessizde.';
+  }
+  if (voice.audioBlocked) text += ' Sesi duymak için “Sesi aç”a bas.';
+  if (status) status.textContent = text;
+  if (joinBtn) joinBtn.hidden = voice.active;
+  if (muteBtn) {
+    muteBtn.hidden = !voice.active;
+    muteBtn.textContent = voice.muted ? 'Sesi aç' : 'Sessize al';
+  }
+  if (leaveBtn) leaveBtn.hidden = !voice.active;
+  if (unlockBtn) unlockBtn.hidden = !voice.audioBlocked;
+}
+
+function ensureVoicePeer() {
+  if (voice.pc) return voice.pc;
+  if (!voice.localStream) return null;
+
+  const pc = new RTCPeerConnection({
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+    ],
+  });
+
+  voice.localStream.getTracks().forEach((track) => pc.addTrack(track, voice.localStream));
+
+  pc.ontrack = (event) => {
+    voice.remoteStream = event.streams[0] || null;
+    const audio = $('voiceAudio');
+    if (audio) {
+      audio.srcObject = event.streams[0];
+      audio
+        .play()
+        .then(() => {
+          voice.audioBlocked = false;
+          updateVoiceUi();
+        })
+        .catch(() => {
+          voice.audioBlocked = true;
+          updateVoiceUi();
+        });
+    }
+  };
+
+  pc.onicecandidate = (event) => {
+    if (event.candidate) socket.emit('voice_signal', { candidate: event.candidate });
+  };
+
+  pc.onconnectionstatechange = () => {
+    if (voice.pc === pc && ['failed', 'closed'].includes(pc.connectionState)) {
+      closeVoicePeer();
+    } else {
+      updateVoiceUi();
+    }
+  };
+
+  voice.pc = pc;
+  return pc;
+}
+
+async function flushVoiceCandidates() {
+  if (!voice.pc || !voice.pc.remoteDescription) return;
+  for (const candidate of voice.pendingCandidates.splice(0)) {
+    try {
+      await voice.pc.addIceCandidate(candidate);
+    } catch (_error) {
+      /* tek aday atlanabilir */
+    }
+  }
+}
+
+async function maybeStartOffer() {
+  const s = app.state;
+  if (!voice.active || !s || !s.players || s.me.index !== 0) return;
+  const rival = s.players.find((p) => !p.isMe);
+  if (!rival || !rival.voice) return;
+  if (voice.pc) return;
+
+  const pc = ensureVoicePeer();
+  if (!pc) return;
+  try {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socket.emit('voice_signal', { sdp: pc.localDescription });
+  } catch (_error) {
+    toast('Sesli sohbet başlatılamadı.');
+  }
+}
+
+function closeVoicePeer() {
+  if (voice.pc) {
+    try {
+      voice.pc.close();
+    } catch (_error) {
+      /* yoksay */
+    }
+    voice.pc = null;
+  }
+  voice.pendingCandidates = [];
+  voice.remoteStream = null;
+  voice.audioBlocked = false;
+  const audio = $('voiceAudio');
+  if (audio) {
+    audio.pause();
+    audio.srcObject = null;
+  }
+  updateVoiceUi();
+}
+
+async function startVoice() {
+  if (voice.active) return;
+  if (!voiceSupported()) {
+    toast('Tarayıcı sesli sohbeti desteklemiyor.');
+    return;
+  }
+  if (!voiceSecure()) {
+    toast('Sesli sohbet için HTTPS gerekir. Yayındaki adresi kullan.');
+    return;
+  }
+
+  try {
+    voice.localStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
+  } catch (_error) {
+    toast('Mikrofon izni verilmedi. Tarayıcıdan izin vermelisin.');
+    return;
+  }
+
+  voice.active = true;
+  voice.muted = false;
+  socket.emit('voice_join');
+  updateVoiceUi();
+  maybeStartOffer();
+}
+
+function stopVoice() {
+  if (!voice.active) {
+    closeVoicePeer();
+    return;
+  }
+  socket.emit('voice_leave');
+  if (voice.localStream) {
+    voice.localStream.getTracks().forEach((track) => track.stop());
+    voice.localStream = null;
+  }
+  voice.active = false;
+  voice.muted = false;
+  closeVoicePeer();
+  updateVoiceUi();
+}
+
+function toggleVoiceMute() {
+  if (!voice.active || !voice.localStream) return;
+  const track = voice.localStream.getAudioTracks()[0];
+  if (!track) return;
+  track.enabled = !track.enabled;
+  voice.muted = !track.enabled;
+  updateVoiceUi();
+}
+
+function unlockVoiceAudio() {
+  const audio = $('voiceAudio');
+  if (!audio) return;
+  audio
+    .play()
+    .then(() => {
+      voice.audioBlocked = false;
+      updateVoiceUi();
+    })
+    .catch(() => {
+      /* yoksay */
+    });
+}
+
+function syncVoiceState(state) {
+  if (!voice.active) {
+    updateVoiceUi();
+    return;
+  }
+  if (!state || !state.players || state.players.length < 2) {
+    stopVoice();
+    return;
+  }
+  const rival = state.players.find((p) => !p.isMe);
+  if (!rival || !rival.voice) {
+    closeVoicePeer();
+    updateVoiceUi();
+    return;
+  }
+  maybeStartOffer();
+  updateVoiceUi();
+}
+
 function showScreen(name) {
   if (currentScreen === name) return;
   currentScreen = name;
@@ -206,6 +459,7 @@ function showScreen(name) {
 }
 
 function goHome() {
+  stopVoice();
   app.state = null;
   app.setup = null;
   app.setupKey = '';
@@ -217,10 +471,12 @@ function goHome() {
   $('transition').hidden = true;
   $('pausedOverlay').hidden = true;
   $('listModal').hidden = true;
+  $('voicePanel').hidden = true;
   showScreen('home');
   if (location.search) {
     history.replaceState(null, '', location.pathname);
   }
+  updateVoiceUi();
 }
 
 /* ------------------------------------------------------------------ */
@@ -237,6 +493,7 @@ socket.on('connect', () => {
 
 socket.on('disconnect', () => {
   $('netBanner').hidden = false;
+  if (voice.active) stopVoice();
 });
 
 socket.on('connect_error', () => {
@@ -255,6 +512,7 @@ socket.on('state', (state) => {
   app.state = state;
   saveSession(state.code, state.me.id);
   route();
+  syncVoiceState(state);
 });
 
 socket.on('toast', ({ text }) => {
@@ -264,6 +522,34 @@ socket.on('toast', ({ text }) => {
 socket.on('partner_typing', ({ active }) => {
   app.partnerTyping = Boolean(active);
   updateTypingIndicator();
+});
+
+socket.on('voice_signal', async ({ sdp, candidate } = {}) => {
+  if (!voice.active || !voice.localStream) return;
+  try {
+    if (sdp) {
+      const pc = ensureVoicePeer();
+      if (!pc) return;
+      if (sdp.type === 'offer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+        await flushVoiceCandidates();
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.emit('voice_signal', { sdp: pc.localDescription });
+      } else if (sdp.type === 'answer') {
+        await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+        await flushVoiceCandidates();
+      }
+    } else if (candidate) {
+      if (!voice.pc || !voice.pc.remoteDescription) {
+        voice.pendingCandidates.push(candidate);
+      } else {
+        await voice.pc.addIceCandidate(candidate);
+      }
+    }
+  } catch (_error) {
+    /* sinyal hatası görmezden gelinir */
+  }
 });
 
 socket.on('session_replaced', () => {
@@ -1918,6 +2204,25 @@ document.addEventListener('click', (event) => {
   const action = btn.dataset.action;
 
   switch (action) {
+    case 'voiceToggle':
+      $('voicePanel').hidden = !$('voicePanel').hidden;
+      updateVoiceUi();
+      break;
+    case 'voiceClose':
+      $('voicePanel').hidden = true;
+      break;
+    case 'voiceJoin':
+      startVoice();
+      break;
+    case 'voiceMute':
+      toggleVoiceMute();
+      break;
+    case 'voiceLeave':
+      stopVoice();
+      break;
+    case 'voiceUnlock':
+      unlockVoiceAudio();
+      break;
     case 'leave':
       leaveRoom(
         app.state &&
@@ -2211,4 +2516,6 @@ $('introModal').addEventListener('click', (e) => {
   if (code && !storedName) {
     setTimeout(() => $('nameInput').focus(), 300);
   }
+
+  updateVoiceUi();
 })();

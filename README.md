@@ -38,6 +38,17 @@ Varsayılan adres: **http://localhost:4173**
    Alternatif: aynı adresi açıp oda kodunu elle gir.
 4. **Soru-Cevap** modunda ikiniz de kendi 5 sorunuzu ve cevabınızı yazın → oyun başlar. **Adam Asmaca** ve **Doğru/Yanlış** modlarında hazırlık yoktur; eşin katılınca oyun otomatik başlar.
 
+---
+
+## Sesli sohbet
+
+Odadayken sağ alttaki **🎙️** düğmesine basıp **“Mikrofonu aç”** de. Eşin de açınca sesli sohbet başlar. Görüşme oyun boyunca açık kalır; panelden **sessize al** veya **bitir** yapabilirsin.
+
+- Ses, **WebRTC ile doğrudan iki telefon arasında** gider; sunucu yalnızca eşleşme sinyalini iletir, ses **kaydedilmez**.
+- Mikrofon erişimi için **HTTPS** gerekir. Yayındaki Render adresi uygundur; `http://192.168.x.x` LAN adresinde tarayıcı mikrofona izin vermez.
+- Ev/Wi-Fi ağlarında STUN ile çalışır. Çok kısıtlı kurumsal ağlarda TURN sunucusu gerekebilir.
+- Kulaklık kullanmak echo’yu azaltır.
+
 ### Bağlantı olmuyorsa
 - Telefonun ve bilgisayarın gerçekten aynı Wi-Fi'de olduğundan emin ol (misafir ağı olmasın).
 - Windows **Güvenlik Duvarı** Node.js'e özel ağ izni isterse **İzin ver**.
@@ -122,6 +133,8 @@ npm run asmaca       # Adam Asmaca sunucu akışı (canlar, puan, geçmiş)
 npm run asmaca-ui    # Adam Asmaca arayüzü (mod seçimi, klavye, tahta)
 npm run dogruyanlis  # Doğru/Yanlış sunucu akışı (iddia, puan, geçmiş)
 npm run dogruyanlis-ui # Doğru/Yanlış arayüzü (iddia kartı, butonlar, sonuç)
+npm run ses          # Sesli sohbet sinyal rölesi (SDP/ICE, katılma/ayrılma)
+npm run ses-ui       # Sahte mikrofonla gerçek WebRTC bağlantısı + mute/ayrılma
 ```
 
 `npm run gorsel` için Chrome gerekir. Farklı bir konumdaysa:
