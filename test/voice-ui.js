@@ -27,13 +27,26 @@ const check = (ok, label, extra) => {
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+async function waitServer() {
+  for (let i = 0; i < 40; i++) {
+    try {
+      const res = await fetch(`${BASE}/saglik`);
+      if (res.ok) return;
+    } catch (_error) {
+      /* sunucu henüz hazır değil */
+    }
+    await sleep(200);
+  }
+  throw new Error('Test sunucusu başlamadı');
+}
+
 (async () => {
   const server = spawn(process.execPath, ['server.js'], {
     cwd: path.join(__dirname, '..'),
     env: { ...process.env, PORT: String(PORT) },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-  await sleep(1400);
+  await waitServer();
 
   const browser = await puppeteer.launch({
     executablePath: CHROME,

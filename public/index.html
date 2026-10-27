@@ -23,42 +23,90 @@
 
     <!-- ================= ANA SAYFA ================= -->
     <section id="screen-home" class="screen active">
-      <div class="hero">
-        <div class="hero-badge">💞</div>
-        <h1>Eşimi<br /><span>Tanıyorum</span></h1>
-        <p class="tagline">Birbirinizi ne kadar tanıyorsunuz?</p>
-        <div class="hero-meta">🎲 200+ hazır soru · 10 kategori</div>
-        <p class="hero-steps"><b>1</b> Mod seç <span>·</span> <b>2</b> Oda kur <span>·</span> <b>3</b> 5 soru, 5 tahmin</p>
+      <header class="home-top">
+        <div class="brand">
+          <img class="brand-mark" src="/icon.svg" alt="" width="40" height="40" />
+          <div class="brand-text">
+            <b>Eşimi Tanıyorum</b>
+            <span>İki kişilik oyun</span>
+          </div>
+        </div>
+        <button id="howBtn" class="icon-btn" aria-label="Nasıl oynanır?">?</button>
+      </header>
+
+      <div class="home-hero">
+        <span class="eyebrow">BİRLİKTE OYNAYIN</span>
+        <h1>Birbirinizi<br /><span>ne kadar iyi</span><br />tanıyorsunuz?</h1>
+        <p class="home-sub">Beş soru yaz, eşinin cevaplarını gör. Üç mod, tek oda — ister yazarak ister harf harf oynayın.</p>
+        <div class="home-stats">
+          <div><b>10</b><span>kategori</span></div>
+          <div><b>203</b><span>hazır soru</span></div>
+          <div><b>3</b><span>oyun modu</span></div>
+        </div>
       </div>
 
-      <div class="mode-pick">
-        <div class="mode-pick-title">Oyun modu seç</div>
+      <section class="mode-pick" aria-label="Oyun modu">
+        <div class="mode-pick-head">
+          <div>
+            <span class="section-eyebrow">OYUN MODU</span>
+            <p class="mode-pick-sub">Nasıl oynamak istersiniz?</p>
+          </div>
+          <span class="mode-selected" id="modeSelected">Soru-Cevap</span>
+        </div>
         <div class="mode-grid">
           <button type="button" class="home-mode on" data-action="pickMode" data-mode="text">
-            <span class="hme">⌨️</span>
+            <span class="mode-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20.5 11.5a8 8 0 0 1-8.5 8 8.6 8.6 0 0 1-3.4-.7L4 20l1.2-4.4a8 8 0 0 1-1.7-4.1 8 8 0 0 1 8.5-8 8 8 0 0 1 8.5 8z"/>
+                <path d="M8.5 10.5h7M8.5 14h4.5"/>
+              </svg>
+            </span>
             <b>Soru-Cevap</b>
+            <span class="mode-check" aria-hidden="true"></span>
           </button>
           <button type="button" class="home-mode" data-action="pickMode" data-mode="hangman">
-            <span class="hme">🔤</span>
+            <span class="mode-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 20h16"/>
+                <path d="M8 20V5h7"/>
+                <path d="M15 5v3"/>
+                <circle cx="15" cy="10.5" r="2.5"/>
+                <path d="M15 13v4M15 17l-1.8 3M15 17l1.8 3"/>
+              </svg>
+            </span>
             <b>Adam Asmaca</b>
+            <span class="mode-check" aria-hidden="true"></span>
           </button>
           <button type="button" class="home-mode" data-action="pickMode" data-mode="truefalse">
-            <span class="hme">✅</span>
+            <span class="mode-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="8" cy="12" r="4.5"/>
+                <path d="M5.8 12l1.6 1.6 2.8-3.4"/>
+                <path d="M14.5 9.5l5 5M19.5 9.5l-5 5"/>
+              </svg>
+            </span>
             <b>Doğru/Yanlış</b>
+            <span class="mode-check" aria-hidden="true"></span>
           </button>
         </div>
         <p class="mode-desc" id="modeDesc">Klasik mod: cevabı yazarak tahmin et.</p>
-      </div>
+      </section>
 
-      <div class="card stack">
-        <label class="field">
+      <section class="card setup-card">
+        <div class="card-head">
+          <div>
+            <span class="section-eyebrow">YENİ OYUN</span>
+            <h2>Oda oluştur</h2>
+          </div>
+          <span class="card-badge">2 kişi</span>
+        </div>
+
+        <label class="field" for="nameInput">
           <span>Takma adın</span>
           <input id="nameInput" type="text" maxlength="16" placeholder="Örn. Ayşe" autocomplete="nickname" enterkeyhint="done" />
         </label>
 
-        <button id="createBtn" class="btn btn-primary">
-          <span class="btn-emoji">💗</span> Yeni oda kur
-        </button>
+        <button id="createBtn" class="btn btn-primary btn-block">Yeni oda kur</button>
 
         <div class="or"><span>veya</span></div>
 
@@ -67,12 +115,13 @@
                  autocapitalize="characters" autocomplete="off" spellcheck="false" />
           <button id="joinBtn" class="btn">Katıl</button>
         </div>
-        <p class="hint center" style="margin-top:2px">Kodla katılıyorsan oyun modunu oda belirler.</p>
-      </div>
+        <p class="hint center">Kodla katılıyorsan oyun modunu oda belirler.</p>
+      </section>
 
-      <button id="howBtn" class="link-btn">Nasıl oynanır? →</button>
-
-      <p class="footnote">İki telefon, aynı Wi-Fi. Hazır olunca eşinin kodu girmesi yeterli.</p>
+      <footer class="home-footer">
+        <span class="status-dot"></span>
+        <span>Aynı Wi-Fi’de iki telefon · Sesli sohbet</span>
+      </footer>
     </section>
 
     <!-- ================= LOBİ ================= -->

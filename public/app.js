@@ -31,16 +31,19 @@ const MODES = {
   text: {
     emoji: '⌨️',
     label: 'Soru-Cevap',
+    short: 'Soru-Cevap',
     desc: 'Klasik mod: cevabı yazarak tahmin et.',
   },
   hangman: {
     emoji: '🔤',
     label: 'Adam Asmaca',
+    short: 'Adam Asmaca',
     desc: 'Sırayla birbirinize soru sorun; cevabı harf harf tahmin edin.',
   },
   truefalse: {
     emoji: '✅',
     label: 'Doğru mu Yanlış mı?',
+    short: 'Doğru/Yanlış',
     desc: 'Sistem ifade sorar; ikiniz de doğru/yanlış diyin.',
   },
 };
@@ -2253,6 +2256,8 @@ document.addEventListener('click', (event) => {
         .querySelectorAll('.home-mode')
         .forEach((card) => card.classList.toggle('on', card.dataset.mode === app.homeMode));
       $('modeDesc').textContent = modeOf(app.homeMode).desc;
+      const selected = $('modeSelected');
+      if (selected) selected.textContent = modeOf(app.homeMode).short;
       break;
     case 'suggest': {
       if (!app.setup) break;
@@ -2517,5 +2522,7 @@ $('introModal').addEventListener('click', (e) => {
     setTimeout(() => $('nameInput').focus(), 300);
   }
 
+  const selected = $('modeSelected');
+  if (selected) selected.textContent = modeOf(app.homeMode).short;
   updateVoiceUi();
 })();
