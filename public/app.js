@@ -46,6 +46,12 @@ const MODES = {
     short: 'Doğru/Yanlış',
     desc: 'Sistem ifade sorar; ikiniz de doğru/yanlış diyin.',
   },
+  team: {
+    emoji: '🏆',
+    label: 'Çiftler Kapışması',
+    short: 'Çiftler',
+    desc: '4-6 kişi: her çift aynı cevabı vermeye çalışır.',
+  },
 };
 
 const modeOf = (id) => MODES[id] || MODES.text;
@@ -186,6 +192,7 @@ const app = {
   setup: null,
   setupKey: '',
   playKey: '',
+  teamPlayKey: '',
   submitting: false,
   partnerTyping: false,
   skew: 0,
@@ -195,6 +202,11 @@ const app = {
   prevState: null,
   transitionTimer: null,
   homeMode: 'text',
+  teamCount: 2,
+  baseUrl: location.origin,
+  joinTeam: 0,
+  inviteCode: '',
+  inviteTeam: 0,
 };
 
 let currentScreen = 'home';
@@ -222,7 +234,7 @@ function voiceSupported() {
 
 function updateVoiceUi() {
   const s = app.state;
-  const inRoom = Boolean(s && s.code);
+  const inRoom = Boolean(s && s.code && s.mode !== 'team');
   document.body.classList.toggle('in-room', inRoom);
 
   const fab = $('voiceFab');
@@ -467,6 +479,7 @@ function goHome() {
   app.setup = null;
   app.setupKey = '';
   app.playKey = '';
+  app.teamPlayKey = '';
   app.submitting = false;
   app.usedQuestions = new Set();
   app.prevState = null;
@@ -474,6 +487,7 @@ function goHome() {
   $('transition').hidden = true;
   $('pausedOverlay').hidden = true;
   $('listModal').hidden = true;
+  $('teamInviteModal').hidden = true;
   $('voicePanel').hidden = true;
   showScreen('home');
   if (location.search) {
@@ -582,8 +596,15 @@ function route() {
   }
 
   if (s.phase === 'lobby') {
-    showScreen('lobby');
-    renderLobby();
+    if (s.mode === 'team') {
+      showScreen('teamLobby');
+      renderTeamLobby();
+    } else {
+      showScreen('lobby');
+      renderLobby();
+    }
+  } else if (s.mode === 'team') {
+    routeTeam(s);
   } else if (s.mode === 'hangman') {
     routeHangman(s);
   } else if (s.mode === 'truefalse') {
@@ -608,7 +629,10 @@ function route() {
 
   const rival = (s.players || []).find((p) => !p.isMe);
   const paused =
-    ['play', 'reveal', 'ask', 'guess'].includes(s.phase) && rival && !rival.connected;
+    s.mode !== 'team' &&
+    ['play', 'reveal', 'ask', 'guess'].includes(s.phase) &&
+    rival &&
+    !rival.connected;
   $('pausedOverlay').hidden = !paused;
   if (paused) {
     $('pausedText').textContent = `${rival.name} bağlantısı bekleniyor…`;
@@ -1178,6 +1202,410 @@ function renderLobby() {
     s.mode === 'text'
       ? 'İkiniz de hazır olduğunuzda sorular başlıyor.'
       : 'Eşin katılınca oyun otomatik başlıyor.';
+}
+
+/* ------------------------------------------------------------------ */
+/*  Çiftler Kapışması                                                  */
+/* ------------------------------------------------------------------ */
+
+function routeTeam(s) {
+  if (!s.teams) return;
+  if (s.phase === 'teamPlay') {
+    showScreen('play');
+    renderTeamPlay(s);
+    return;
+  }
+  if (s.phase === 'teamReveal') {
+    showScreen('play');
+    renderTeamReveal(s);
+    return;
+  }
+  if (s.phase === 'teamRoundEnd') {
+    showScreen('roundEnd');
+    renderTeamRoundEnd(s);
+    return;
+  }
+  if (s.phase === 'final') {
+    showScreen('final');
+    renderTeamFinal(s);
+  }
+}
+
+function activeTeamIndexes(s) {
+  if (s.teamIds && s.teamIds.length) return s.teamIds;
+  return (s.teams || []).filter((t) => t.complete).map((t) => t.index);
+}
+
+function teamScoresHtml(s) {
+  const ids = activeTeamIndexes(s);
+  return `<div class="team-scorebar">${ids
+    .map((id) => {
+      const t = (s.teams || []).find((x) => x.index === id);
+      if (!t) return '';
+      return `<div class="team-score ${t.isMine ? 'mine' : ''}">
+        <span class="ts-name">${esc(t.name)}</span>
+        <b class="ts-score">${t.score}</b>
+      </div>`;
+    })
+    .join('')}</div>`;
+}
+
+function renderTeamLobby() {
+  const s = app.state;
+  if (!s || s.mode !== 'team') return;
+  app.teamPlayKey = '';
+
+  $('teamCode').textContent = s.code;
+  const isHost = Boolean(s.isHost);
+  const completeCount = (s.teams || []).filter((t) => t.complete).length;
+
+  $('teamList').innerHTML = (s.teams || [])
+    .map((t) => {
+      let membersHtml = '<span class="team-member off">Henüz kimse yok</span>';
+      if (t.members && t.members.length) {
+        membersHtml = t.members
+          .map(
+            (m) => `<span class="team-member ${m.connected ? '' : 'off'}">${esc(m.name)}${
+              m.isMe ? ' <em>(sen)</em>' : ''
+            }</span>`
+          )
+          .join('');
+      }
+      const waiting = t.complete
+        ? ''
+        : `<span class="team-member ghost">2. oyuncu bekleniyor…</span>`;
+      const inviteBtn =
+        isHost && !t.complete
+          ? `<button type="button" class="btn btn-small team-invite-btn" data-action="teamInvite" data-team="${t.index}">Davet et</button>`
+          : '';
+      return `<div class="team-card ${t.isMine ? 'mine' : ''} ${t.complete ? 'complete' : ''}">
+        <div class="team-card-head">
+          <div class="team-card-title">
+            <span class="team-badge">Çift ${t.index}</span>
+            <b>${t.complete ? esc(t.name) : t.members.length ? `${esc(t.members[0].name)} + 1` : 'Boş çift'}</b>
+          </div>
+          <span class="team-state ${t.complete ? 'ok' : ''}">${t.complete ? 'Hazır' : 'Oyuncu bekliyor'}</span>
+        </div>
+        <div class="team-members">${membersHtml}${waiting}</div>
+        ${inviteBtn}
+      </div>`;
+    })
+    .join('');
+
+  const startBtn = $('teamStartBtn');
+  if (startBtn) {
+    startBtn.hidden = !isHost;
+    startBtn.disabled = !s.canStart;
+    startBtn.textContent = s.canStart
+      ? s.teamCount === 3 && completeCount === 2
+        ? '2 çift ile başlat'
+        : 'Oyunu başlat'
+      : 'Oyuncular bekleniyor…';
+  }
+
+  $('teamStartHint').textContent = isHost
+    ? s.canStart
+      ? `${completeCount} çift hazır. Başlatabilirsin.`
+      : 'En az 2 çift ve her çiftte 2 oyuncu olmalı. Davetleri gönder.'
+    : 'Oda sahibi başlatınca oyun başlar.';
+}
+
+function teamInviteLink(teamIndex) {
+  const s = app.state;
+  if (!s) return '';
+  const base = (app.baseUrl || location.origin).replace(/\/$/, '');
+  return `${base}/?oda=${encodeURIComponent(s.code)}&takim=${teamIndex}`;
+}
+
+function openTeamInvite(teamIndex) {
+  const s = app.state;
+  const index = Number(teamIndex) || 0;
+  if (!s || s.mode !== 'team' || index < 1) return;
+  app.inviteTeam = index;
+  const team = (s.teams || []).find((t) => t.index === index);
+  $('teamInviteTitle').textContent = team && team.members.length
+    ? `${index}. çift daveti · ${team.members.map((m) => m.name).join(' & ')}`
+    : `${index}. çift daveti`;
+  $('teamInviteQr').src = `/qr.svg?oda=${encodeURIComponent(s.code)}&takim=${index}`;
+  $('teamInviteLink').textContent = teamInviteLink(index);
+  const note = $('teamInviteNote');
+  if (note) {
+    note.textContent =
+      team && team.isMine
+        ? 'Bu bağlantıyı eşine gönder; ikinci oyuncu olarak senin çiftine katılsın.'
+        : 'İki eş de bu bağlantıyı kullanmalı. Biri ilk, diğeri ikinci oyuncu olarak aynı çifte katılır.';
+  }
+  $('teamInviteModal').hidden = false;
+}
+
+async function shareTeamInvite() {
+  const link = teamInviteLink(app.inviteTeam);
+  if (!link) return;
+  const text = `Eşimi Tanıyorum — ${app.inviteTeam}. çift daveti 💞\nAynı bağlantıyla ikiniz de katılın:`;
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: 'Çiftler Kapışması', text, url: link });
+      return;
+    } catch (_error) {
+      /* kullanıcı iptal etti */
+    }
+  }
+  window.open(
+    `https://wa.me/?text=${encodeURIComponent(`${text} ${link}`)}`,
+    '_blank',
+    'noopener'
+  );
+}
+
+async function copyTeamInvite() {
+  const link = teamInviteLink(app.inviteTeam);
+  if (!link) return;
+  try {
+    await navigator.clipboard.writeText(link);
+    toast('Çift daveti kopyalandı 💌');
+  } catch {
+    const area = document.createElement('textarea');
+    area.value = link;
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand('copy');
+    area.remove();
+    toast('Çift daveti kopyalandı 💌');
+  }
+}
+
+function renderTeamPlay(s) {
+  const q = s.teamQuestion;
+  if (!q) return;
+
+  $('playTitle').textContent = 'Çiftler Kapışması';
+  $('playCounter').textContent = `Soru ${q.number}/${q.total}`;
+
+  const myTeam = (s.teams || []).find((t) => t.isMine);
+  const partner = q.partnerName || 'Eşin';
+  const answered = q.myAnswer !== null && q.myAnswer !== undefined;
+  const key = `team:${s.round}:${q.number}:${
+    answered ? `a:${q.partnerAnswered}:${q.answeredCount}` : 'input'
+  }`;
+  if (app.teamPlayKey === key) return;
+  app.teamPlayKey = key;
+
+  $('playBody').innerHTML = `
+    ${teamScoresHtml(s)}
+    <div class="timer-wrap">
+      <div class="timer"><div class="timer-fill" id="timerFill"></div></div>
+      <div class="timer-text" id="timerText">45 sn</div>
+    </div>
+    <div class="card question-card">
+      <div class="q-owner">${esc(q.category || 'Birlikte')}</div>
+      <h2 class="question-text">${esc(q.text)}</h2>
+      <p class="q-sub">${
+        myTeam && myTeam.name ? esc(myTeam.name) : 'Çiftin'
+      } olarak ikiniz de aynı cevabı vermeye çalışın.</p>
+    </div>
+    <div class="card guess-box">
+      ${
+        answered
+          ? `<div class="team-answered">
+              <div class="answer-chip"><span>Senin cevabın</span><b>${esc(q.myAnswer)}</b></div>
+              <p class="team-wait">${
+                q.partnerAnswered
+                  ? `Eşin ${esc(partner)} de cevapladı.`
+                  : `Eşin ${esc(partner)} bekleniyor…`
+              }</p>
+              <p class="hint">${q.answeredCount}/${q.playerCount} oyuncu cevapladı. Tüm çiftler bitince sonuç açıklanacak.</p>
+            </div>`
+          : `<label class="field-label" for="teamAnswer">Cevabın</label>
+             <input id="teamAnswer" type="text" class="input" maxlength="60" placeholder="Kısa bir cevap yaz…" autocomplete="off" />
+             <button type="button" class="btn btn-primary btn-block" data-action="teamAnswer">Cevapla 💘</button>
+             <p class="hint center">Eşinle aynı cevabı vermelisin. Kısa yaz.</p>`
+      }
+    </div>
+    ${s.isHost ? '<button type="button" class="link-btn team-end-link" data-action="teamEnd">Oyunu bitir</button>' : ''}
+  `;
+
+  const input = $('teamAnswer');
+  if (input) {
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        sendTeamAnswer();
+      }
+    });
+    setTimeout(() => input.focus(), 50);
+  }
+  updateTimer();
+  updateVoiceUi();
+}
+
+function renderTeamReveal(s) {
+  const q = s.teamQuestion;
+  if (!q) return;
+  app.teamPlayKey = '';
+
+  const myTeam = (s.teams || []).find((t) => t.isMine);
+  const results = q.results || [];
+  const myResult = myTeam ? results.find((r) => r.team === myTeam.index) : null;
+  const matched = Boolean(myResult && myResult.matched);
+
+  $('playTitle').textContent = 'Çiftler Kapışması';
+  $('playCounter').textContent = `Soru ${q.number}/${q.total}`;
+
+  $('playBody').innerHTML = `
+    ${teamScoresHtml(s)}
+    <div class="card question-card">
+      <div class="verdict">
+        <span class="verdict-emoji">${matched ? '🎯' : '💔'}</span>
+        <h2>${matched ? 'Eşleştiniz!' : 'Bu kez olmadı'}</h2>
+        <p class="q-sub">${esc(q.text)}</p>
+      </div>
+      <div class="team-results">
+        ${results
+          .map(
+            (r) => `<div class="team-result ${r.matched ? 'ok' : 'no'} ${
+              myTeam && r.team === myTeam.index ? 'mine' : ''
+            }">
+              <div class="tr-head">
+                <b>${esc(r.name)}</b>
+                <span class="tr-badge">${r.matched ? `Eşleşti +${r.points}` : 'Eşleşmedi'}</span>
+              </div>
+              <div class="tr-answers">
+                ${[0, 1]
+                  .map(
+                    (i) => `<div class="tr-answer">
+                      <span>${esc((r.names && r.names[i]) || '')}</span>
+                      <p>${esc((r.answers && r.answers[i]) || '—')}</p>
+                    </div>`
+                  )
+                  .join('')}
+              </div>
+            </div>`
+          )
+          .join('')}
+      </div>
+    </div>
+    <button type="button" class="btn btn-primary btn-block" data-action="teamContinue">Devam →</button>
+    <p class="ready-note">İlk basan geçer; 12 saniye içinde otomatik geçilir.</p>
+    ${s.isHost ? '<button type="button" class="link-btn team-end-link" data-action="teamEnd">Oyunu bitir</button>' : ''}
+  `;
+  updateVoiceUi();
+}
+
+function teamScoresGridHtml(teams, best) {
+  return `<div class="team-score-grid">${(teams || [])
+    .map(
+      (t) => `<div class="team-score-card ${t.score === best ? 'win' : ''}">
+        <span class="tsc-name">${esc(t.name)}</span>
+        <b class="tsc-score">${t.score}</b>
+        <span class="tsc-sub">puan</span>
+      </div>`
+    )
+    .join('')}</div>`;
+}
+
+function teamEntryListHtml(entries) {
+  if (!entries || !entries.length) return '<p class="hint">Henüz soru yok.</p>';
+  return entries
+    .map(
+      (e) => `<div class="result-item team-entry">
+        <div class="mark">${e.index}</div>
+        <div class="ri-body">
+          <div class="ri-q">${esc(e.question)}</div>
+          <div class="team-entry-row">${(e.results || [])
+            .map(
+              (r) =>
+                `<span class="entry-team ${r.matched ? 'ok' : 'no'}">${esc(r.name)}: ${
+                  r.matched ? `✓ +${r.points}` : '✗'
+                }</span>`
+            )
+            .join('')}</div>
+        </div>
+      </div>`
+    )
+    .join('');
+}
+
+function renderTeamRoundEnd(s) {
+  const r = s.results;
+  if (!r) return;
+  app.teamPlayKey = '';
+  const teams = r.teams || [];
+  const best = Math.max(0, ...teams.map((t) => t.score));
+
+  $('roundTitle').textContent = `${s.round}. tur bitti`;
+  $('roundBody').innerHTML = `
+    <div class="card round-summary">
+      <span class="rs-emoji">✨</span>
+      <h2>10 soru tamamlandı</h2>
+      <p class="muted">${teams.map((t) => `${esc(t.name)}: ${t.score}`).join(' · ')}</p>
+    </div>
+    ${teamScoresGridHtml(teams, best)}
+    ${
+      s.isHost
+        ? `<div class="btn-row">
+            <button type="button" class="btn btn-primary" data-action="teamNextRound">Sonraki 10 soru</button>
+            <button type="button" class="btn btn-ghost" data-action="teamEnd">Bitir</button>
+          </div>`
+        : '<p class="ready-note">Oda sahibi devam edince yeni tur başlar.</p>'
+    }
+    <div class="section-title">Bu turun soruları</div>
+    ${teamEntryListHtml(r.roundEntries)}
+  `;
+  updateVoiceUi();
+}
+
+function renderTeamFinal(s) {
+  const r = s.results;
+  if (!r) return;
+  app.teamPlayKey = '';
+  const teams = r.teams || [];
+  const best = Math.max(0, ...teams.map((t) => t.score));
+  const winner = r.winners && r.winners.length === 1 ? r.winners[0] : null;
+
+  $('finalBody').innerHTML = `
+    <div class="card winner-card">
+      <span class="trophy">${winner ? '🏆' : '🤝'}</span>
+      <h2>${winner ? `${esc(winner)} kazandı!` : 'Berabere!'}</h2>
+      <p class="winner-sub">${
+        winner ? 'En çok eşleşen çift.' : 'Çiftler aynı puanda bitirdi.'
+      }</p>
+    </div>
+    ${teamScoresGridHtml(teams, best)}
+    <div class="section-title">Tüm sorular</div>
+    ${teamEntryListHtml(r.entries)}
+    <div class="btn-row">
+      ${
+        s.isHost
+          ? '<button type="button" class="btn btn-primary" data-action="teamPlayAgain">Yeniden oyna</button>'
+          : ''
+      }
+      <button type="button" class="btn btn-ghost" data-action="leave">Ana sayfa</button>
+    </div>
+    ${!s.isHost ? '<p class="ready-note">Yeniden oynamak için oda sahibini bekle.</p>' : ''}
+  `;
+  updateVoiceUi();
+}
+
+function sendTeamAnswer() {
+  const s = app.state;
+  if (!s || s.mode !== 'team' || s.phase !== 'teamPlay' || !s.teamQuestion) return;
+  if (s.teamQuestion.myAnswer !== null && s.teamQuestion.myAnswer !== undefined) return;
+  const input = $('teamAnswer');
+  if (!input) return;
+  const value = input.value.trim();
+  if (!value) {
+    input.focus();
+    return;
+  }
+  socket.emit('team_answer', { answer: value });
+  input.disabled = true;
+  const btn = document.querySelector('[data-action="teamAnswer"]');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Gönderiliyor…';
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -1877,10 +2305,15 @@ function updateTypingIndicator() {
 
 function updateTimer() {
   const s = app.state;
-  if (!s || s.phase !== 'play') return;
+  if (!s) return;
+
+  const teamPlay = s.mode === 'team' && s.phase === 'teamPlay' && s.teamQuestion;
+  if (s.phase !== 'play' && !teamPlay) return;
 
   let deadline = 0;
-  if (s.mode === 'text' && s.question) {
+  if (teamPlay) {
+    deadline = s.teamQuestion.deadline;
+  } else if (s.mode === 'text' && s.question) {
     deadline = s.question.deadline;
   } else if (s.mode === 'truefalse' && s.quiz) {
     deadline = s.quiz.deadline;
@@ -1893,15 +2326,16 @@ function updateTimer() {
   if (!fill || !text) return;
 
   const now = Date.now() + app.skew;
-  const total = (s.guessSeconds || 45) * 1000;
+  const total = teamPlay ? 45 * 1000 : (s.guessSeconds || 45) * 1000;
   const left = Math.max(0, deadline - now);
   const ratio = Math.max(0, Math.min(1, left / total));
   fill.style.width = (ratio * 100).toFixed(1) + '%';
   fill.classList.toggle('low', ratio < 0.3);
   text.textContent = Math.ceil(left / 1000) + ' sn';
 
-  const paused =
-    (s.question && s.question.paused) || (s.quiz && s.quiz.paused) || false;
+  const paused = teamPlay
+    ? false
+    : (s.question && s.question.paused) || (s.quiz && s.quiz.paused) || false;
 
   if (left <= 0 && !paused) {
     const btn = $('guessBtn');
@@ -1911,6 +2345,12 @@ function updateTimer() {
     }
     const input = $('guessInput');
     if (input) input.disabled = true;
+    const teamInput = $('teamAnswer');
+    if (teamInput) teamInput.disabled = true;
+    document.querySelectorAll('[data-action="teamAnswer"]').forEach((el) => {
+      el.disabled = true;
+      el.textContent = 'Süre bitti ⏰';
+    });
     document.querySelectorAll('.hm-key').forEach((key) => {
       key.disabled = true;
     });
@@ -2249,7 +2689,7 @@ document.addEventListener('click', (event) => {
       renderSetup();
       break;
     case 'pickMode':
-      app.homeMode = ['text', 'hangman', 'truefalse'].includes(btn.dataset.mode)
+      app.homeMode = ['text', 'hangman', 'truefalse', 'team'].includes(btn.dataset.mode)
         ? btn.dataset.mode
         : 'text';
       document
@@ -2258,6 +2698,61 @@ document.addEventListener('click', (event) => {
       $('modeDesc').textContent = modeOf(app.homeMode).desc;
       const selected = $('modeSelected');
       if (selected) selected.textContent = modeOf(app.homeMode).short;
+      const teamRow = $('teamCountRow');
+      if (teamRow) teamRow.hidden = app.homeMode !== 'team';
+      const badge = $('createPlayersBadge');
+      if (badge) {
+        badge.textContent =
+          app.homeMode === 'team' ? `${app.teamCount * 2} kişi` : '2 kişi';
+      }
+      break;
+    case 'pickTeams':
+      app.teamCount = Number(btn.dataset.teams) === 3 ? 3 : 2;
+      document
+        .querySelectorAll('.team-count')
+        .forEach((chip) =>
+          chip.classList.toggle('on', Number(chip.dataset.teams) === app.teamCount)
+        );
+      {
+        const badge = $('createPlayersBadge');
+        if (badge) badge.textContent = `${app.teamCount * 2} kişi`;
+      }
+      break;
+    case 'teamStart':
+      socket.emit('team_start');
+      break;
+    case 'teamAnswer':
+      sendTeamAnswer();
+      break;
+    case 'teamContinue':
+      btn.disabled = true;
+      btn.textContent = 'Geçiliyor…';
+      socket.emit('team_continue');
+      break;
+    case 'teamNextRound':
+      btn.disabled = true;
+      btn.textContent = 'Bekleniyor…';
+      socket.emit('team_next_round');
+      break;
+    case 'teamEnd':
+      socket.emit('team_end');
+      break;
+    case 'teamPlayAgain':
+      btn.disabled = true;
+      btn.textContent = 'Bekleniyor…';
+      socket.emit('team_play_again');
+      break;
+    case 'teamInvite':
+      openTeamInvite(btn.dataset.team);
+      break;
+    case 'closeTeamInvite':
+      $('teamInviteModal').hidden = true;
+      break;
+    case 'teamInviteShare':
+      shareTeamInvite();
+      break;
+    case 'teamInviteCopy':
+      copyTeamInvite();
       break;
     case 'suggest': {
       if (!app.setup) break;
@@ -2408,7 +2903,7 @@ $('createBtn').addEventListener('click', () => {
     toast('Sunucuya bağlanılamadı. İnternetini kontrol et.');
     return;
   }
-  socket.emit('create_room', { name, mode: app.homeMode });
+  socket.emit('create_room', { name, mode: app.homeMode, teams: app.teamCount });
 });
 
 $('joinBtn').addEventListener('click', () => {
@@ -2428,7 +2923,8 @@ $('joinBtn').addEventListener('click', () => {
     toast('Sunucuya bağlanılamadı. İnternetini kontrol et.');
     return;
   }
-  socket.emit('join_room', { name, code });
+  const team = app.joinTeam && code === app.inviteCode ? app.joinTeam : undefined;
+  socket.emit('join_room', { name, code, team });
 });
 
 $('codeInput').addEventListener('input', (e) => {
@@ -2469,20 +2965,47 @@ $('shareBtn').addEventListener('click', async () => {
   const s = app.state;
   if (!s) return;
   const code = s.code;
-  const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
-  const url = isLocal ? '' : `${location.origin}/?oda=${code}`;
-  const text = url
-    ? `Eşimi Tanıyorum 💞 Oda kodum: ${code}\n${url}`
-    : `Eşimi Tanıyorum 💞 Oda kodum: ${code}\nAynı Wi-Fi'de uygulamayı açıp kodu gir.`;
+  const url = `${(app.baseUrl || location.origin).replace(/\/$/, '')}/?oda=${code}`;
+  const text = `Eşimi Tanıyorum 💞 Oda kodum: ${code}\n${url}`;
   if (navigator.share) {
     try {
-      await navigator.share({ title: 'Eşimi Tanıyorum', text, ...(url ? { url } : {}) });
+      await navigator.share({ title: 'Eşimi Tanıyorum', text, url });
       return;
     } catch {
       /* kullanıcı vazgeçti */
     }
   }
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+});
+
+$('teamCopyBtn').addEventListener('click', async () => {
+  const code = app.state ? app.state.code : '';
+  try {
+    await navigator.clipboard.writeText(code);
+    toast('Oda kodu kopyalandı 💌');
+  } catch {
+    toast('Kod: ' + code);
+  }
+});
+
+$('teamShareBtn').addEventListener('click', async () => {
+  const s = app.state;
+  if (!s) return;
+  const url = `${(app.baseUrl || location.origin).replace(/\/$/, '')}/?oda=${s.code}`;
+  const text = `Eşimi Tanıyorum 💞 Çiftler Kapışması odam: ${s.code}\n${url}`;
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: 'Çiftler Kapışması', text, url });
+      return;
+    } catch {
+      /* kullanıcı vazgeçti */
+    }
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+});
+
+$('teamInviteModal').addEventListener('click', (e) => {
+  if (e.target === $('teamInviteModal')) $('teamInviteModal').hidden = true;
 });
 
 $('howBtn').addEventListener('click', () => {
@@ -2513,7 +3036,17 @@ $('introModal').addEventListener('click', (e) => {
 (function init() {
   const params = new URLSearchParams(location.search);
   const code = (params.get('oda') || '').toUpperCase();
+  const team = Number(params.get('takim')) || 0;
   if (code) $('codeInput').value = code;
+  if (team) {
+    app.joinTeam = team;
+    app.inviteCode = code;
+    const note = $('joinTeamNote');
+    if (note) {
+      note.hidden = false;
+      note.textContent = `${team}. çift davetiyle geliyorsun. İsmini yazıp katıl.`;
+    }
+  }
 
   const storedName = localStorage.getItem(NAME_KEY);
   if (storedName) $('nameInput').value = storedName;
@@ -2524,5 +3057,19 @@ $('introModal').addEventListener('click', (e) => {
 
   const selected = $('modeSelected');
   if (selected) selected.textContent = modeOf(app.homeMode).short;
+  const teamRow = $('teamCountRow');
+  if (teamRow) teamRow.hidden = app.homeMode !== 'team';
+
+  fetch('/bilgi')
+    .then((response) => response.json())
+    .then((info) => {
+      if (info && typeof info.url === 'string' && info.url.startsWith('http')) {
+        app.baseUrl = info.url;
+      }
+    })
+    .catch(() => {
+      /* yoksay */
+    });
+
   updateVoiceUi();
 })();

@@ -12,7 +12,7 @@ const crypto = require('crypto');
 const express = require('express');
 const { Server } = require('socket.io');
 const QRCode = require('qrcode');
-const { TRUE_FALSE } = require('./game-data');
+const { TRUE_FALSE, TEAM_QUESTIONS } = require('./game-data');
 
 const PORT = Number(process.env.PORT) || 4173;
 const HOST = process.env.HOST || undefined;
@@ -27,6 +27,10 @@ const QUIZ_SECONDS = 15;
 const QUIZ_QUESTIONS = 10;
 const QUIZ_CORRECT = 10;
 const QUIZ_SPEED_BONUS = 2;
+const TEAM_SECONDS = 45;
+const TEAM_REVEAL_MS = 12000;
+const TEAM_QUESTIONS_PER_ROUND = 10;
+const TEAM_MATCH_POINTS = 10;
 const REVEAL_MS = 25000;
 const ROOM_TTL = 1000 * 60 * 60 * 6; // 6 saat
 
@@ -56,7 +60,10 @@ app.get('/qr.svg', async (req, res) => {
     .replace(/[^A-Z0-9]/g, '')
     .slice(0, 8);
   const base = baseUrlFor(req);
-  const target = roomCode ? `${base}/?oda=${roomCode}` : base;
+  const team = Number(req.query.takim) || 0;
+  const target = roomCode
+    ? `${base}/?oda=${roomCode}${team >= 1 && team <= 9 ? `&takim=${team}` : ''}`
+    : base;
   try {
     const svg = await QRCode.toString(target, {
       type: 'svg',
@@ -267,10 +274,18 @@ function buildClaim(room, ownerIndex, question) {
 /*  Oda / oyuncu                                                       */
 /* ------------------------------------------------------------------ */
 
-function createRoom(mode) {
+function createRoom(mode, options) {
+  const teamCount =
+    mode === 'team' ? (options && Number(options.teams) === 3 ? 3 : 2) : 0;
   return {
     code: makeCode(),
-    mode: ['text', 'hangman', 'truefalse'].includes(mode) ? mode : 'text',
+    mode: ['text', 'hangman', 'truefalse', 'team'].includes(mode) ? mode : 'text',
+    teamCount,
+    hostId: null,
+    teamScores: {},
+    teamGame: null,
+    teamTimer: null,
+    teamRevealTimer: null,
     createdAt: Date.now(),
     phase: 'lobby',
     round: 1,
@@ -295,6 +310,8 @@ function makePlayer(name, index) {
     socketId: null,
     connected: false,
     voice: false,
+    team: null,
+    seat: null,
     questions: [],
     ready: false,
     readyNext: false,
@@ -314,10 +331,14 @@ function clearTimers(room) {
   if (room.hangman && room.hangman.endTimer) clearTimeout(room.hangman.endTimer);
   if (room.quizTimer) clearTimeout(room.quizTimer);
   if (room.quizRevealTimer) clearTimeout(room.quizRevealTimer);
+  if (room.teamTimer) clearTimeout(room.teamTimer);
+  if (room.teamRevealTimer) clearTimeout(room.teamRevealTimer);
   room.guessTimer = null;
   room.revealTimer = null;
   room.quizTimer = null;
   room.quizRevealTimer = null;
+  room.teamTimer = null;
+  room.teamRevealTimer = null;
   if (room.hangman) room.hangman.endTimer = null;
 }
 
@@ -327,6 +348,8 @@ function playerPayload(p) {
     name: p.name,
     connected: p.connected,
     voice: Boolean(p.voice),
+    team: p.team,
+    seat: p.seat,
     ready: p.ready,
     readyNext: p.readyNext,
     score: p.totalScore,
@@ -382,6 +405,97 @@ function buildStandaloneResults(room) {
   };
 }
 
+function buildTeamResults(room) {
+  const teams = [];
+  for (let t = 1; t <= room.teamCount; t++) {
+    const members = room.players.filter((p) => p.team === t);
+    if (!members.length) continue;
+    teams.push({
+      index: t,
+      name: members.map((m) => m.name).join(' & '),
+      members: members.map((m) => m.name),
+      score: room.teamScores && room.teamScores[t] ? room.teamScores[t] : 0,
+    });
+  }
+  const best = Math.max(0, ...teams.map((t) => t.score));
+  const winners = teams.filter((t) => t.score === best && t.score > 0).map((t) => t.name);
+  return {
+    teams,
+    entries: room.history,
+    roundEntries: room.history.filter((e) => e.round === room.round),
+    winners,
+    tie: winners.length !== 1,
+    mode: 'team',
+  };
+}
+
+function teamStateFor(room, index, state, me) {
+  const teams = [];
+  for (let t = 1; t <= room.teamCount; t++) {
+    const members = room.players
+      .filter((p) => p.team === t)
+      .sort((a, b) => (a.seat || 0) - (b.seat || 0));
+    teams.push({
+      index: t,
+      name: members.length ? members.map((m) => m.name).join(' & ') : `Çift ${t}`,
+      shortName: `Çift ${t}`,
+      members: members.map((m) => ({
+        id: m.id,
+        name: m.name,
+        connected: m.connected,
+        isMe: m.id === me.id,
+      })),
+      complete: members.length === 2,
+      score: room.teamScores && room.teamScores[t] ? room.teamScores[t] : 0,
+      isMine: members.some((m) => m.id === me.id),
+    });
+  }
+
+  state.teams = teams;
+  state.teamCount = room.teamCount;
+  state.isHost = room.hostId === me.id;
+  state.me.team = me.team;
+  state.me.seat = me.seat;
+  state.teamIds = room.teamGame ? room.teamGame.teamIds : [];
+
+  const occupied = teams.filter((t) => t.members.length > 0);
+  const completeTeams = teams.filter((t) => t.complete);
+  state.canStart =
+    room.phase === 'lobby' &&
+    state.isHost &&
+    completeTeams.length >= 2 &&
+    occupied.every((t) => t.complete);
+
+  const g = room.teamGame;
+  if (g && (room.phase === 'teamPlay' || room.phase === 'teamReveal')) {
+    const question = g.questions[g.step];
+    const partner = room.players.find((p) => p.team === me.team && p.id !== me.id);
+    const answers = g.answers || {};
+    const activePlayers = room.players.filter((p) => g.teamIds.includes(p.team));
+    state.teamQuestion = {
+      number: g.step + 1,
+      total: g.questions.length,
+      text: question.text,
+      category: question.category,
+      deadline: g.deadline,
+      myAnswer: answers[me.id] != null ? answers[me.id] : null,
+      partnerName: partner ? partner.name : '',
+      partnerAnswered: partner ? answers[partner.id] != null : false,
+      answeredCount: activePlayers.filter((p) => answers[p.id] != null).length,
+      playerCount: activePlayers.length,
+      revealed: Boolean(g.revealed),
+      results: g.revealed ? g.results : undefined,
+      paused: !me.connected || activePlayers.some((p) => !p.connected),
+    };
+  }
+
+  if (room.phase === 'teamRoundEnd' || room.phase === 'final') {
+    state.results = buildTeamResults(room);
+  }
+
+  return state;
+}
+
 function stateFor(room, index) {
   const me = room.players[index];
   if (!me) return null;
@@ -409,6 +523,10 @@ function stateFor(room, index) {
     players: room.players.map((p) => ({ ...playerPayload(p), isMe: p.index === index })),
     rivalName: rival ? rival.name : '',
   };
+
+  if (room.mode === 'team') {
+    return teamStateFor(room, index, state, me);
+  }
 
   if (room.mode === 'text' && (room.phase === 'play' || room.phase === 'reveal')) {
     const entry = room.game.current;
@@ -890,6 +1008,137 @@ function nextQuizStatement(room) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Takım modu: Çiftler Kapışması                                      */
+/* ------------------------------------------------------------------ */
+
+function pickTeamQuestions(room, count) {
+  const used = room.teamGame.used;
+  let pool = TEAM_QUESTIONS.filter((q) => !used.has(q.text));
+  if (pool.length < count) {
+    used.clear();
+    pool = TEAM_QUESTIONS.slice();
+  }
+  const shuffled = pool.slice();
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  const chosen = shuffled.slice(0, count);
+  chosen.forEach((q) => used.add(q.text));
+  return chosen;
+}
+
+function startTeamGame(room) {
+  clearTimers(room);
+  const teams = [...new Set(room.players.map((p) => p.team))]
+    .filter((t) => room.players.filter((p) => p.team === t).length === 2)
+    .sort((a, b) => a - b);
+  if (teams.length < 2) return false;
+
+  room.phase = 'teamPlay';
+  room.round = 1;
+  room.history = [];
+  room.teamScores = {};
+  room.players.forEach((p) => {
+    p.totalScore = 0;
+    p.roundScore = 0;
+    p.readyNext = false;
+  });
+  room.teamGame = {
+    teamIds: teams,
+    used: new Set(),
+    step: 0,
+    questions: [],
+    answers: {},
+    revealed: false,
+    results: null,
+    deadline: 0,
+  };
+  room.teamGame.questions = pickTeamQuestions(room, TEAM_QUESTIONS_PER_ROUND);
+  startTeamQuestion(room);
+  return true;
+}
+
+function startTeamQuestion(room) {
+  clearTimers(room);
+  const g = room.teamGame;
+  const question = g.questions[g.step];
+  if (!question) {
+    room.phase = 'teamRoundEnd';
+    broadcast(room);
+    return;
+  }
+  g.answers = {};
+  g.revealed = false;
+  g.results = null;
+  g.deadline = Date.now() + TEAM_SECONDS * 1000;
+  room.phase = 'teamPlay';
+  room.players.forEach((p) => (p.readyNext = false));
+  room.teamTimer = setTimeout(
+    () => revealTeamQuestion(room),
+    TEAM_SECONDS * 1000 + 300
+  );
+  broadcast(room);
+}
+
+function revealTeamQuestion(room) {
+  if (room.mode !== 'team' || room.phase !== 'teamPlay' || !room.teamGame) return;
+  const g = room.teamGame;
+  if (g.revealed) return;
+  const question = g.questions[g.step];
+  if (!question) return;
+
+  g.revealed = true;
+  clearTimers(room);
+
+  g.results = g.teamIds.map((teamId) => {
+    const members = room.players
+      .filter((p) => p.team === teamId)
+      .sort((a, b) => (a.seat || 0) - (b.seat || 0));
+    const firstId = members[0] ? members[0].id : null;
+    const secondId = members[1] ? members[1].id : null;
+    const answerA = (firstId && g.answers[firstId]) || '';
+    const answerB = (secondId && g.answers[secondId]) || '';
+    const matched = Boolean(answerA && answerB && evaluate(answerA, answerB).points >= 6);
+    const points = matched ? TEAM_MATCH_POINTS : 0;
+    room.teamScores[teamId] = (room.teamScores[teamId] || 0) + points;
+    return {
+      team: teamId,
+      name: members.map((m) => m.name).join(' & '),
+      names: members.map((m) => m.name),
+      answers: [answerA, answerB],
+      matched,
+      points,
+    };
+  });
+
+  room.history.push({
+    round: room.round,
+    index: g.step + 1,
+    question: question.text,
+    category: question.category,
+    results: g.results,
+  });
+
+  room.phase = 'teamReveal';
+  room.teamRevealTimer = setTimeout(() => nextTeamQuestion(room), TEAM_REVEAL_MS);
+  broadcast(room);
+}
+
+function nextTeamQuestion(room) {
+  if (room.mode !== 'team' || room.phase !== 'teamReveal' || !room.teamGame) return;
+  clearTimers(room);
+  const g = room.teamGame;
+  g.step += 1;
+  if (g.step >= g.questions.length) {
+    room.phase = 'teamRoundEnd';
+    broadcast(room);
+  } else {
+    startTeamQuestion(room);
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /*  Socket olayları                                                    */
 /* ------------------------------------------------------------------ */
 
@@ -903,13 +1152,18 @@ function meOf(room, socket) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('create_room', ({ name, mode } = {}) => {
+  socket.on('create_room', ({ name, mode, teams } = {}) => {
     const clean = cleanName(name);
     if (!clean) return sendError(socket, 'bad_name', 'En az 2 karakterlik bir takma ad yaz.');
     if (!socket.connected) return;
 
-    const room = createRoom(mode);
+    const room = createRoom(mode, { teams });
     const player = makePlayer(clean, 0);
+    if (room.mode === 'team') {
+      player.team = 1;
+      player.seat = 0;
+      room.hostId = player.id;
+    }
     player.socketId = socket.id;
     player.connected = true;
     room.players.push(player);
@@ -923,16 +1177,60 @@ io.on('connection', (socket) => {
     broadcast(room);
   });
 
-  socket.on('join_room', ({ name, code } = {}) => {
+  socket.on('join_room', ({ name, code, team } = {}) => {
     const clean = cleanName(name);
     if (!clean) return sendError(socket, 'bad_name', 'En az 2 karakterlik bir takma ad yaz.');
     const room = rooms.get(String(code || '').trim().toUpperCase());
     if (!room) return sendError(socket, 'bad_room', 'Oda bulunamadı. Kodu kontrol et.');
-    if (room.players.length >= 2) {
-      return sendError(socket, 'room_full', 'Bu oda dolu. Yeni bir oda kur.');
-    }
     if (room.phase !== 'lobby') {
       return sendError(socket, 'bad_room', 'Bu odada oyun başlamış. Yeni bir oda kur.');
+    }
+
+    if (room.mode === 'team') {
+      const requested = Number(team) || 0;
+      let target = 0;
+      if (requested >= 1 && requested <= room.teamCount) target = requested;
+      else {
+        for (let t = 1; t <= room.teamCount; t++) {
+          if (room.players.filter((p) => p.team === t).length < 2) {
+            target = t;
+            break;
+          }
+        }
+      }
+      if (!target) {
+        return sendError(socket, 'room_full', 'Bu oda dolu. Yeni bir oda kur.');
+      }
+      const members = room.players.filter((p) => p.team === target);
+      if (members.length >= 2) {
+        return sendError(socket, 'team_full', 'Bu çift dolu. Başka bir davet bağlantısı kullan.');
+      }
+
+      const player = makePlayer(clean, room.players.length);
+      player.team = target;
+      player.seat = members.length;
+      player.socketId = socket.id;
+      player.connected = true;
+      room.players.push(player);
+
+      socket.data.code = room.code;
+      socket.data.playerId = player.id;
+      socket.join(room.code);
+
+      socket.emit('joined', {
+        code: room.code,
+        playerId: player.id,
+        index: player.index,
+      });
+      broadcast(room);
+      socket.to(room.code).emit('toast', {
+        text: `${clean} ${target}. çifte katıldı 💞`,
+      });
+      return;
+    }
+
+    if (room.players.length >= 2) {
+      return sendError(socket, 'room_full', 'Bu oda dolu. Yeni bir oda kur.');
     }
 
     const player = makePlayer(clean, 1);
@@ -989,6 +1287,18 @@ io.on('connection', (socket) => {
     if (room.mode === 'truefalse' && room.phase === 'reveal') {
       if (room.quizRevealTimer) clearTimeout(room.quizRevealTimer);
       room.quizRevealTimer = setTimeout(() => nextQuizStatement(room), 20000);
+    }
+    if (room.mode === 'team' && room.phase === 'teamPlay' && room.teamGame) {
+      room.teamGame.deadline = Date.now() + TEAM_SECONDS * 1000;
+      if (room.teamTimer) clearTimeout(room.teamTimer);
+      room.teamTimer = setTimeout(
+        () => revealTeamQuestion(room),
+        TEAM_SECONDS * 1000 + 300
+      );
+    }
+    if (room.mode === 'team' && room.phase === 'teamReveal') {
+      if (room.teamRevealTimer) clearTimeout(room.teamRevealTimer);
+      room.teamRevealTimer = setTimeout(() => nextTeamQuestion(room), TEAM_REVEAL_MS);
     }
 
     socket.emit('joined', { code: room.code, playerId: player.id, index: player.index });
@@ -1173,6 +1483,102 @@ io.on('connection', (socket) => {
     });
   });
 
+  socket.on('team_start', () => {
+    const room = roomOf(socket);
+    const me = meOf(room, socket);
+    if (!room || !me) return;
+    if (room.mode !== 'team' || room.phase !== 'lobby') return;
+    if (room.hostId !== me.id) {
+      return sendError(socket, 'not_host', 'Oyunu sadece oda sahibi başlatabilir.');
+    }
+    const occupiedTeams = [...new Set(room.players.map((p) => p.team))];
+    const complete = occupiedTeams.filter(
+      (t) => room.players.filter((p) => p.team === t).length === 2
+    );
+    const incomplete = occupiedTeams.some(
+      (t) => room.players.filter((p) => p.team === t).length !== 2
+    );
+    if (incomplete) {
+      return sendError(socket, 'teams_incomplete', 'Her çiftin iki oyuncusu olmalı.');
+    }
+    if (complete.length < 2) {
+      return sendError(socket, 'teams_missing', 'En az 2 çift gerekli.');
+    }
+    startTeamGame(room);
+  });
+
+  socket.on('team_answer', ({ answer } = {}) => {
+    const room = roomOf(socket);
+    const me = meOf(room, socket);
+    if (!room || !me) return;
+    if (room.mode !== 'team' || room.phase !== 'teamPlay') return;
+    const g = room.teamGame;
+    if (!g || !g.teamIds.includes(me.team)) return;
+    if (g.answers[me.id] != null) return;
+
+    const value = cleanText(answer, 60);
+    if (value.length < 1) {
+      return sendError(socket, 'bad_answer', 'Cevabını yaz.');
+    }
+    g.answers[me.id] = value;
+
+    const activePlayers = room.players.filter((p) => g.teamIds.includes(p.team));
+    if (activePlayers.every((p) => g.answers[p.id] != null)) {
+      revealTeamQuestion(room);
+    } else {
+      broadcast(room);
+    }
+  });
+
+  socket.on('team_continue', () => {
+    const room = roomOf(socket);
+    const me = meOf(room, socket);
+    if (!room || !me) return;
+    if (room.mode !== 'team' || room.phase !== 'teamReveal') return;
+    const g = room.teamGame;
+    if (!g || !g.teamIds.includes(me.team)) return;
+    nextTeamQuestion(room);
+  });
+
+  socket.on('team_next_round', () => {
+    const room = roomOf(socket);
+    const me = meOf(room, socket);
+    if (!room || !me) return;
+    if (room.mode !== 'team' || room.phase !== 'teamRoundEnd') return;
+    if (room.hostId !== me.id) {
+      return sendError(socket, 'not_host', 'Yeni turu sadece oda sahibi başlatabilir.');
+    }
+    const g = room.teamGame;
+    if (!g) return;
+    room.round += 1;
+    g.step = 0;
+    g.questions = pickTeamQuestions(room, TEAM_QUESTIONS_PER_ROUND);
+    startTeamQuestion(room);
+  });
+
+  socket.on('team_end', () => {
+    const room = roomOf(socket);
+    const me = meOf(room, socket);
+    if (!room || !me) return;
+    if (room.mode !== 'team') return;
+    if (room.hostId !== me.id) {
+      return sendError(socket, 'not_host', 'Oyunu sadece oda sahibi bitirebilir.');
+    }
+    if (!['teamPlay', 'teamReveal', 'teamRoundEnd'].includes(room.phase)) return;
+    finishGame(room);
+  });
+
+  socket.on('team_play_again', () => {
+    const room = roomOf(socket);
+    const me = meOf(room, socket);
+    if (!room || !me) return;
+    if (room.mode !== 'team' || room.phase !== 'final') return;
+    if (room.hostId !== me.id) {
+      return sendError(socket, 'not_host', 'Yeniden oyunu sadece oda sahibi başlatabilir.');
+    }
+    startTeamGame(room);
+  });
+
   socket.on('ready_next', () => {
     const room = roomOf(socket);
     const me = meOf(room, socket);
@@ -1282,6 +1688,24 @@ io.on('connection', (socket) => {
     socket.leave(room.code);
     socket.data.code = null;
     socket.data.playerId = null;
+
+    if (room.mode === 'team') {
+      room.players = room.players.filter((p) => p.id !== me.id);
+      clearTimers(room);
+      room.teamGame = null;
+      room.teamScores = {};
+      room.history = [];
+      room.round = 1;
+      if (!room.players.length) {
+        rooms.delete(room.code);
+        return;
+      }
+      if (room.hostId === me.id) room.hostId = room.players[0].id;
+      room.players.forEach((p, i) => (p.index = i));
+      room.phase = 'lobby';
+      broadcast(room);
+      return;
+    }
 
     room.players = room.players.filter((p) => p.id !== me.id);
     room.players.forEach((p, i) => (p.index = i));

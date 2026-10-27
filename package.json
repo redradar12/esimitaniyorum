@@ -15,7 +15,9 @@
     "dogruyanlis": "node test/truefalse.js",
     "dogruyanlis-ui": "node test/truefalse-ui.js",
     "ses": "node test/voice.js",
-    "ses-ui": "node test/voice-ui.js"
+    "ses-ui": "node test/voice-ui.js",
+    "ciftler": "node test/team.js",
+    "ciftler-ui": "node test/team-ui.js"
   },
   "engines": {
     "node": ">=18"

@@ -28,7 +28,7 @@
           <img class="brand-mark" src="/icon.svg" alt="" width="40" height="40" />
           <div class="brand-text">
             <b>Eşimi Tanıyorum</b>
-            <span>İki kişilik oyun</span>
+            <span>Çiftler için oyun</span>
           </div>
         </div>
         <button id="howBtn" class="icon-btn" aria-label="Nasıl oynanır?">?</button>
@@ -37,11 +37,11 @@
       <div class="home-hero">
         <span class="eyebrow">BİRLİKTE OYNAYIN</span>
         <h1>Birbirinizi<br /><span>ne kadar iyi</span><br />tanıyorsunuz?</h1>
-        <p class="home-sub">Beş soru yaz, eşinin cevaplarını gör. Üç mod, tek oda — ister yazarak ister harf harf oynayın.</p>
+        <p class="home-sub">Dört mod, tek oda — soru-cevap, adam asmaca, doğru/yanlış ve çiftler kapışması. İster yazarak ister harf harf oynayın.</p>
         <div class="home-stats">
           <div><b>10</b><span>kategori</span></div>
           <div><b>203</b><span>hazır soru</span></div>
-          <div><b>3</b><span>oyun modu</span></div>
+          <div><b>4</b><span>oyun modu</span></div>
         </div>
       </div>
 
@@ -88,8 +88,24 @@
             <b>Doğru/Yanlış</b>
             <span class="mode-check" aria-hidden="true"></span>
           </button>
+          <button type="button" class="home-mode" data-action="pickMode" data-mode="team">
+            <span class="mode-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M8 4h8v4.5a4 4 0 0 1-8 0V4z"/>
+                <path d="M8 6H5v1.5a3 3 0 0 0 3 3M16 6h3v1.5a3 3 0 0 1-3 3"/>
+                <path d="M12 12.5V16M9 20h6M10 20v-2.5h4V20"/>
+              </svg>
+            </span>
+            <b>Çiftler</b>
+            <span class="mode-check" aria-hidden="true"></span>
+          </button>
         </div>
         <p class="mode-desc" id="modeDesc">Klasik mod: cevabı yazarak tahmin et.</p>
+        <div class="team-count-row" id="teamCountRow" hidden>
+          <span class="team-count-label">Kaç çift?</span>
+          <button type="button" class="team-count on" data-action="pickTeams" data-teams="2">2 çift · 4 kişi</button>
+          <button type="button" class="team-count" data-action="pickTeams" data-teams="3">3 çift · 6 kişi</button>
+        </div>
       </section>
 
       <section class="card setup-card">
@@ -98,7 +114,7 @@
             <span class="section-eyebrow">YENİ OYUN</span>
             <h2>Oda oluştur</h2>
           </div>
-          <span class="card-badge">2 kişi</span>
+          <span class="card-badge" id="createPlayersBadge">2 kişi</span>
         </div>
 
         <label class="field" for="nameInput">
@@ -116,6 +132,7 @@
           <button id="joinBtn" class="btn">Katıl</button>
         </div>
         <p class="hint center">Kodla katılıyorsan oyun modunu oda belirler.</p>
+        <p class="hint center" id="joinTeamNote" hidden></p>
       </section>
 
       <footer class="home-footer">
@@ -161,6 +178,37 @@
       <div class="players" id="lobbyPlayers"></div>
 
       <p class="footnote center" id="lobbyFoot">İkiniz de hazır olduğunuzda sorular başlıyor.</p>
+    </section>
+
+    <!-- ================= ÇİFTLER LOBİSİ ================= -->
+    <section id="screen-teamLobby" class="screen">
+      <div class="screen-head">
+        <button class="icon-btn" data-action="leave" aria-label="Çık">←</button>
+        <span class="screen-title">Çiftler Kapışması</span>
+        <button class="icon-btn" data-action="help" aria-label="Nasıl oynanır">?</button>
+      </div>
+
+      <div class="team-lobby-head">
+        <span class="eyebrow">ODA HAZIR</span>
+        <h2>Çiftler yarışıyor</h2>
+        <p class="muted">Her çift kendi iki telefonundan oynar. Eşler aynı cevabı verirse puan kazanır.</p>
+      </div>
+
+      <div class="code-box">
+        <span id="teamCode">-----</span>
+      </div>
+
+      <div id="teamList" class="team-list"></div>
+
+      <button id="teamStartBtn" class="btn btn-primary btn-block" data-action="teamStart" hidden>Oyunu başlat</button>
+      <p class="hint center" id="teamStartHint"></p>
+
+      <div class="row gap">
+        <button id="teamCopyBtn" class="btn">Kodu kopyala</button>
+        <button id="teamShareBtn" class="btn btn-ghost">Paylaş</button>
+      </div>
+
+      <p class="footnote center">Davetleri çiftlere ayrı ayrı gönder; her çift kendi bağlantısıyla katılsın.</p>
     </section>
 
     <!-- ================= SORU HAZIRLIĞI ================= -->
@@ -232,10 +280,11 @@
         <button id="helpClose" class="icon-btn" aria-label="Kapat">✕</button>
       </div>
       <ol class="steps">
-        <li><b>Mod seç ve oda kur.</b> Soru-Cevap, Adam Asmaca veya Doğru/Yanlış. Takma adını yaz, oda kodunu eşinle paylaş.</li>
+        <li><b>Mod seç ve oda kur.</b> Soru-Cevap, Adam Asmaca, Doğru/Yanlış veya Çiftler Kapışması. Takma adını yaz, oda kodunu eşinle paylaş.</li>
         <li><b>Eşin katılsın.</b> Kodu kendi telefonuna girsin. Aynı Wi-Fi’de olmalısınız.</li>
-        <li><b>5 soru hazırla.</b> Kendinle ilgili 5 soru ve cevabını yaz. 10 kategoride 200+ hazır soru var; “Tümünü gör” ile hepsine bakabilir, arayabilirsin.</li>
+        <li><b>5 soru hazırla.</b> Soru-Cevap’ta kendinle ilgili 5 soru ve cevabını yaz. 10 kategoride 200+ hazır soru var; “Tümünü gör” ile hepsine bakabilir, arayabilirsin.</li>
         <li><b>Moda göre oyna.</b> Soru-Cevap’ta cevabı yazarsın, Adam Asmaca’da harf seçersin, Doğru/Yanlış’ta karar verirsin.</li>
+        <li><b>Çiftler Kapışması.</b> 2 veya 3 çift aynı odada yarışır. Her çifte ayrı davet bağlantısı gönder; iki eş de aynı bağlantıyla katılır. Sistem ortak geçmiş soruları sorar; eşler aynı cevabı verirse çift +10 puan kazanır.</li>
         <li><b>Puan toplayın.</b> Doğru cevaplar puan kazandırır. Tur bitince ikiniz de yeni 5 soru hazırlayıp devam edersiniz.</li>
         <li><b>Sesli sohbet (isteğe bağlı).</b> Sağ alttaki 🎙️ düğmesinden mikrofonu aç; eşin de açınca konuşabilirsiniz.</li>
       </ol>
@@ -262,6 +311,21 @@
       <span class="t-emoji" id="transEmoji">✅</span>
       <b id="transTitle">1. soru tamam!</b>
       <span id="transSub">Şimdi 2. soru — Ayşe'nin sorusu</span>
+    </div>
+  </div>
+
+  <!-- ================= ÇİFT DAVETİ ================= -->
+  <div id="teamInviteModal" class="modal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="teamInviteTitle">Çift daveti</h2>
+        <button type="button" class="icon-btn" data-action="closeTeamInvite" aria-label="Kapat">✕</button>
+      </div>
+      <img id="teamInviteQr" class="team-invite-qr" alt="Çift daveti QR kodu" />
+      <p class="hint center" id="teamInviteLink"></p>
+      <button class="btn btn-primary btn-block" data-action="teamInviteShare">WhatsApp’tan gönder</button>
+      <button class="btn btn-block" data-action="teamInviteCopy">Bağlantıyı kopyala</button>
+      <p class="hint" id="teamInviteNote">İki eş de bu bağlantıyı kullanmalı. Biri ilk, diğeri ikinci oyuncu olarak aynı çifte katılır.</p>
     </div>
   </div>
 
