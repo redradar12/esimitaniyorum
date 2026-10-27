@@ -1,0 +1,25 @@
+{
+  "name": "esimi-taniyorum",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Eşimi Tanıyorum - iki kişilik, iki telefonla oynanan aşk bilgi yarışması",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node test/flow.js",
+    "gorsel": "node test/visual.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.22.3",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.4"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.16.0",
+    "socket.io-client": "^4.8.4"
+  }
+}

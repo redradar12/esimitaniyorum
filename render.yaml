@@ -1,0 +1,15 @@
+# Render.com Blueprint — ücretsiz plan
+# Repoyu Render'a bağlayınca bu dosya otomatik okunur.
+services:
+  - type: web
+    name: esimi-taniyorum
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /saglik
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production

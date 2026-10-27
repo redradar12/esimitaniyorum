@@ -1,0 +1,20 @@
+{
+  "name": "Eşimi Tanıyorum",
+  "short_name": "Eşimi Tanıyorum",
+  "description": "İki telefonla oynanan aşk bilgi yarışması",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#12081f",
+  "theme_color": "#160b26",
+  "lang": "tr",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

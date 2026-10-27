@@ -1,0 +1,4 @@
+node_modules/
+test/screens/
+*.log
+.DS_Store

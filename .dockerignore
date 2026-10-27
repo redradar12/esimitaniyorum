@@ -1,0 +1,9 @@
+node_modules
+test
+.git
+.gitignore
+*.md
+baslat.bat
+render.yaml
+Dockerfile
+.dockerignore

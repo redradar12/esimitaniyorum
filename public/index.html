@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#160b26" />
+  <meta name="description" content="Eşimi Tanıyorum — sevgilinle/eşinle iki telefonla oynanan aşk bilgi yarışması." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Eşimi Tanıyorum 💞</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="backdrop" aria-hidden="true"></div>
+
+  <div class="app">
+    <div id="netBanner" class="net-banner" hidden>Bağlantı koptu — yeniden bağlanılıyor…</div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <!-- ================= ANA SAYFA ================= -->
+    <section id="screen-home" class="screen active">
+      <div class="hero">
+        <div class="hero-badge">💞</div>
+        <h1>Eşimi<br /><span>Tanıyorum</span></h1>
+        <p class="tagline">Birbirinizi ne kadar tanıyorsunuz?</p>
+      </div>
+
+      <div class="card stack">
+        <label class="field">
+          <span>Takma adın</span>
+          <input id="nameInput" type="text" maxlength="16" placeholder="Örn. Ayşe" autocomplete="nickname" enterkeyhint="done" />
+        </label>
+
+        <button id="createBtn" class="btn btn-primary">
+          <span class="btn-emoji">💗</span> Yeni oda kur
+        </button>
+
+        <div class="or"><span>veya</span></div>
+
+        <div class="join-row">
+          <input id="codeInput" class="code-input" type="text" maxlength="5" placeholder="ODA KODU"
+                 autocapitalize="characters" autocomplete="off" spellcheck="false" />
+          <button id="joinBtn" class="btn">Katıl</button>
+        </div>
+      </div>
+
+      <button id="howBtn" class="link-btn">Nasıl oynanır? →</button>
+
+      <p class="footnote">İki telefon, aynı Wi-Fi. Hazır olunca eşinin kodu girmesi yeterli.</p>
+    </section>
+
+    <!-- ================= LOBİ ================= -->
+    <section id="screen-lobby" class="screen">
+      <div class="screen-head">
+        <button class="icon-btn" data-action="leave" aria-label="Çık">←</button>
+        <span class="screen-title">Oda</span>
+        <button class="icon-btn" data-action="help" aria-label="Nasıl oynanır">?</button>
+      </div>
+
+      <div class="lobby-hero">
+        <div class="pulse-ring"></div>
+        <div class="lobby-emoji">💞</div>
+      </div>
+
+      <h2 class="center">Oda hazır!</h2>
+      <p class="center muted">Kodu eşinle paylaş, o da bu odaya katılsın.</p>
+
+      <div class="code-box">
+        <span id="roomCode">-----</span>
+      </div>
+
+      <div class="qr-card">
+        <img id="qrImg" alt="Odaya katılma QR kodu" />
+        <div class="qr-text">
+          <b>Telefonla okut</b>
+          <span>Eşin telefonunun kamerasını açıp bu kodu okutsun; oda otomatik açılır.</span>
+        </div>
+      </div>
+
+      <div class="row gap">
+        <button id="copyBtn" class="btn">Kodu kopyala</button>
+        <button id="shareBtn" class="btn btn-ghost">Paylaş</button>
+      </div>
+
+      <div class="players" id="lobbyPlayers"></div>
+
+      <p class="footnote center">İkiniz de hazır olduğunuzda sorular başlıyor.</p>
+    </section>
+
+    <!-- ================= SORU HAZIRLIĞI ================= -->
+    <section id="screen-setup" class="screen">
+      <div class="screen-head">
+        <button class="icon-btn" data-action="leave" aria-label="Çık">←</button>
+        <span class="screen-title" id="setupTitle">Senin soruların</span>
+        <button class="icon-btn" data-action="help" aria-label="Yardım">?</button>
+      </div>
+
+      <div id="setupBody"></div>
+    </section>
+
+    <!-- ================= OYUN ================= -->
+    <section id="screen-play" class="screen">
+      <div class="screen-head">
+        <button class="icon-btn" data-action="leave" aria-label="Çık">←</button>
+        <span class="screen-title" id="playTitle">Tur 1</span>
+        <span class="round-chip" id="playCounter">1/10</span>
+      </div>
+      <div id="playBody"></div>
+    </section>
+
+    <!-- ================= TUR SONU ================= -->
+    <section id="screen-roundEnd" class="screen">
+      <div class="screen-head">
+        <button class="icon-btn" data-action="leave" aria-label="Çık">←</button>
+        <span class="screen-title" id="roundTitle">Tur 1 bitti</span>
+        <span class="round-chip">✨</span>
+      </div>
+      <div id="roundBody"></div>
+    </section>
+
+    <!-- ================= FİNAL ================= -->
+    <section id="screen-final" class="screen">
+      <div class="screen-head">
+        <button class="icon-btn" data-action="leave" aria-label="Çık">←</button>
+        <span class="screen-title">Sonuç</span>
+        <span class="round-chip">🏆</span>
+      </div>
+      <div id="finalBody"></div>
+    </section>
+  </div>
+
+  <!-- ================= YARDIM ================= -->
+  <div id="helpModal" class="modal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2>Nasıl oynanır?</h2>
+        <button id="helpClose" class="icon-btn" aria-label="Kapat">✕</button>
+      </div>
+      <ol class="steps">
+        <li><b>Oda kur.</b> Takma adını yaz, oda kodu oluşsun.</li>
+        <li><b>Eşin katılsın.</b> Kodu kendi telefonuna girsin. Aynı Wi-Fi’de olmalısınız.</li>
+        <li><b>5 soru hazırla.</b> Kendinle ilgili 5 soru ve cevabını yaz. Soru bulamazsan “Bana soru öner”e bas.</li>
+        <li><b>Sırayla tahmin et.</b> Sıra eşinin sorusuna gelince onun cevabını tahmin et. 45 saniyen var.</li>
+        <li><b>Puan toplayın.</b> Tam isabet 10, yakın cevap 6–8 puan. Tur bitince yeni 5 soruya geçin.</li>
+      </ol>
+      <p class="hint">İpucu: Cevapları kısa tut (ör. “Adana kebap”, “mavi”). Böylece eşleşmesi kolay olur.</p>
+      <button id="helpOk" class="btn btn-primary">Anladım</button>
+    </div>
+  </div>
+
+  <div id="pausedOverlay" class="paused" hidden>
+    <div class="paused-card">
+      <div class="spinner"></div>
+      <p id="pausedText">Eşinin bağlantısı bekleniyor…</p>
+      <button class="btn" data-action="leave">Odadan ayrıl</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
