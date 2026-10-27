@@ -22,6 +22,11 @@ const BANK = window.SORU_BANKASI;
 
 const ALL_QUESTIONS = BANK.flatMap((c) => c.questions.map((q) => ({ q, category: c.id })));
 
+const HANGMAN_ALPHABET = [
+  'A', 'B', 'C', 'Ç', 'D', 'E', 'F', 'G', 'Ğ', 'H', 'I', 'İ', 'J', 'K', 'L', 'M',
+  'N', 'O', 'Ö', 'P', 'Q', 'R', 'S', 'Ş', 'T', 'U', 'Ü', 'V', 'W', 'X', 'Y', 'Z',
+];
+
 /** "Karışık" sanal kategorisi: öneriler 203 sorunun tamamından gelir. */
 const MIXED = { id: 'karisik', label: 'Karışık', emoji: '🎲', questions: [] };
 const CATEGORIES = [MIXED, ...BANK];
@@ -341,6 +346,7 @@ function newSetup(round) {
     step: 0,
     items: Array.from({ length: 5 }, () => ({
       category: 'karisik',
+      mode: 'text',
       text: '',
       answer: '',
     })),
@@ -504,7 +510,21 @@ function renderSetup() {
       <label class="field-label" for="qAnswer">Doğru cevap</label>
       <input id="qAnswer" type="text" maxlength="60" placeholder="Örn. Mavi"
              value="${esc(item.answer)}" enterkeyhint="${isLast ? 'done' : 'next'}" />
-      <p class="hint">Senin cevabın bu. Eşin tahmin ederken kısa ve net olması işini kolaylaştırır (ör. “Mavi”, “Kebap”).</p>
+
+      <div class="mode-label">Eşin nasıl tahmin etsin?</div>
+      <div class="mode-row">
+        <button type="button" class="mode-chip ${
+          item.mode !== 'hangman' ? 'on' : ''
+        }" data-action="mode" data-mode="text">⌨️ Serbest yaz</button>
+        <button type="button" class="mode-chip ${
+          item.mode === 'hangman' ? 'on' : ''
+        }" data-action="mode" data-mode="hangman">🔤 Harf harf</button>
+      </div>
+      <p class="hint">${
+        item.mode === 'hangman'
+          ? 'Eşin harf seçerek tahmin eder (6 can). Cevabı 2-16 harf arasında tut.'
+          : 'Eşin cevabı yazarak tahmin eder. Kısa ve net yaz (ör. “Mavi”, “Kebap”).'
+      }</p>
       <p class="hint error" id="setupError" hidden></p>
 
       <div class="btn-row">
@@ -557,7 +577,9 @@ function renderSetupWaiting(s) {
                  <div class="mark">•</div>
                  <div class="ri-body">
                    <div class="ri-q">${esc(q.text)}</div>
-                   <div class="ri-a"><b>${esc(q.answer)}</b></div>
+                   <div class="ri-a"><b>${esc(q.answer)}</b>${
+                     q.mode === 'hangman' ? ' · 🔤 harf harf' : ''
+                   }</div>
                  </div>
                </div>`
              )
@@ -615,6 +637,12 @@ function validateItem(item) {
   if (!item) return 'Bir şeyler ters gitti, sayfayı yenile.';
   if (item.text.trim().length < 3) return 'Önce sorunu yaz.';
   if (!item.answer.trim()) return 'Sorunun cevabını da yazmalısın.';
+  if (item.mode === 'hangman') {
+    const letterCount = item.answer.replace(/[^A-Za-zÇĞİÖŞÜçğıöşü]/g, '').length;
+    if (letterCount < 2 || letterCount > 16) {
+      return 'Harf harf modu için cevap 2-16 harf olmalı.';
+    }
+  }
   return '';
 }
 
@@ -663,6 +691,7 @@ function autofill() {
   app.setup.items = app.setup.items.map((item, i) => ({
     ...item,
     category: chosen[i].category,
+    mode: 'text',
     text: chosen[i].q,
   }));
   chosen.forEach((x) => app.usedQuestions.add(x.q));
@@ -729,6 +758,7 @@ function submitQuestions() {
     text: item.text.trim(),
     answer: item.answer.trim(),
     category: item.category,
+    mode: item.mode === 'hangman' ? 'hangman' : 'text',
   }));
   socket.emit('submit_questions', { questions });
   setTimeout(() => {
@@ -783,15 +813,52 @@ function showSetupTransition(savedNumber) {
   }, 1200);
 }
 
+function hangmanHearts(lives) {
+  const total = 6;
+  return Array.from({ length: total }, (_, i) => `<span class="${i < lives ? '' : 'off'}">❤️</span>`).join('');
+}
+
+function hangmanBoardHtml(q, interactive) {
+  const mask = q.hangman.mask
+    .map((ch) => {
+      if (ch === ' ') return '<span class="hm-gap"></span>';
+      return `<span class="hm-cell ${ch ? 'open' : ''}">${ch ? esc(ch) : ''}</span>`;
+    })
+    .join('');
+  const used = new Set([
+    ...q.hangman.mask.filter((ch) => ch && ch !== ' '),
+    ...q.hangman.wrong,
+  ]);
+  const wrong = q.hangman.wrong.length
+    ? `<div class="hm-wrong">Yanlış harfler: ${q.hangman.wrong.map((l) => esc(l)).join(' ')}</div>`
+    : '';
+  const keyboard = interactive
+    ? `<div class="hm-keyboard">${HANGMAN_ALPHABET.map(
+        (letter) =>
+          `<button type="button" class="hm-key ${used.has(letter) ? 'used' : ''}" data-action="hangmanLetter" data-letter="${letter}" ${
+            used.has(letter) ? 'disabled' : ''
+          }>${letter}</button>`
+      ).join('')}</div>`
+    : '';
+
+  return `<div class="hm-board">${mask}</div>
+    <div class="hm-lives">${hangmanHearts(q.hangman.lives)}<span>${q.hangman.lives} can</span></div>
+    ${wrong}
+    ${keyboard}`;
+}
+
 function renderPlay() {
   const s = app.state;
   const q = s.question;
   if (!q) return;
 
+  const isHangman = q.mode === 'hangman' && Boolean(q.hangman);
+  const hangKey = isHangman ? `:${q.hangman.mask.join('')}:${q.hangman.wrong.join('')}` : '';
+
   $('playTitle').textContent = `Tur ${s.round}`;
   $('playCounter').textContent = `Soru ${q.number}/${q.total}`;
 
-  const key = `${s.round}:${q.number}:play`;
+  const key = `${s.round}:${q.number}:play${hangKey}`;
   if (app.playKey === key) {
     // sadece skorları güncelle (input kaybolmasın)
     const bar = document.querySelector('#playBody .scorebar');
@@ -825,15 +892,26 @@ function renderPlay() {
       <div class="card question-card">
         ${ownerLine}
         <h2 class="question-text">${esc(q.text)}</h2>
-        <p class="q-sub">${esc(q.guesserName)} cevabını tahmin ediyor.</p>
+        <p class="q-sub">${
+          isHangman
+            ? `${esc(q.guesserName)} harf harf tahmin ediyor.`
+            : `${esc(q.guesserName)} cevabını tahmin ediyor.`
+        }</p>
       </div>
       <div class="card">
+        ${isHangman ? hangmanBoardHtml(q, false) : ''}
         <div class="owner-wait">
           <div class="avatar alt">${esc(initial(q.guesserName))}</div>
-          <p id="typingLine">${esc(q.guesserName)} düşünüyor…</p>
-          <div class="typing" id="typingDots">
-            <span class="b"></span><span class="b"></span><span class="b"></span>
-          </div>
+          <p id="typingLine">${esc(q.guesserName)} ${
+            isHangman ? 'harf seçiyor…' : 'düşünüyor…'
+          }</p>
+          ${
+            isHangman
+              ? ''
+              : `<div class="typing" id="typingDots">
+                   <span class="b"></span><span class="b"></span><span class="b"></span>
+                 </div>`
+          }
         </div>
       </div>
     `
@@ -841,14 +919,22 @@ function renderPlay() {
       <div class="card question-card">
         ${ownerLine}
         <h2 class="question-text">${esc(q.text)}</h2>
-        <p class="q-sub">Sence ${esc(q.ownerName)} ne cevap verir?</p>
+        <p class="q-sub">${
+          isHangman
+            ? 'Harf seçerek cevabı bul. 6 canın var.'
+            : `Sence ${esc(q.ownerName)} ne cevap verir?`
+        }</p>
       </div>
-      <div class="card guess-box">
-        <input id="guessInput" class="guess-input" type="text" maxlength="60"
-               placeholder="Tahminini yaz…" autocomplete="off" enterkeyhint="send" />
-        <button class="btn btn-primary btn-block" id="guessBtn">Cevapla 💘</button>
-        <p class="hint center" style="margin:0">Tahminin ne kadar yakınsa puan o kadar yüksek.</p>
-      </div>
+      ${
+        isHangman
+          ? `<div class="card guess-box">${hangmanBoardHtml(q, true)}</div>`
+          : `<div class="card guess-box">
+               <input id="guessInput" class="guess-input" type="text" maxlength="60"
+                      placeholder="Tahminini yaz…" autocomplete="off" enterkeyhint="send" />
+               <button class="btn btn-primary btn-block" id="guessBtn">Cevapla 💘</button>
+               <p class="hint center" style="margin:0">Tahminin ne kadar yakınsa puan o kadar yüksek.</p>
+             </div>`
+      }
     `;
 
   const turnBanner = q.isMine
@@ -865,7 +951,7 @@ function renderPlay() {
     ${body}
   `;
 
-  if (!q.isMine) {
+  if (!q.isMine && !isHangman) {
     const input = $('guessInput');
     const btn = $('guessBtn');
     const send = () => {
@@ -942,6 +1028,9 @@ function updateTimer() {
     }
     const input = $('guessInput');
     if (input) input.disabled = true;
+    document.querySelectorAll('.hm-key').forEach((key) => {
+      key.disabled = true;
+    });
   }
 }
 
@@ -959,11 +1048,22 @@ function renderReveal() {
   $('playTitle').textContent = `Tur ${s.round}`;
   $('playCounter').textContent = `Soru ${q.number}/${q.total}`;
 
+  const isHangman = q.mode === 'hangman';
+
   let emoji = '💔';
   let title = '';
   if (q.timedOut) {
     emoji = '⏰';
     title = 'Süre doldu!';
+  } else if (isHangman) {
+    const solved = Boolean(q.hangman && q.hangman.solved);
+    if (solved) {
+      emoji = '🎯';
+      title = q.isMine ? `${q.guesserName} harf harf bildi!` : 'Harf harf bildin!';
+    } else {
+      emoji = '🧩';
+      title = q.isMine ? `${q.guesserName} bilemedi` : 'Bilemedin';
+    }
   } else if (q.match === 'exact') {
     emoji = '🎯';
     title = q.isMine ? `${q.guesserName} tam bildi!` : 'Tam isabet!';
@@ -977,7 +1077,13 @@ function renderReveal() {
 
   const pointsText = q.points > 0 ? `+${q.points} puan` : '0 puan';
 
-  const guessLabel = q.isMine ? `${esc(genitive(q.guesserName))} tahmini` : 'Senin tahminin';
+  const guessLabel = isHangman
+    ? q.isMine
+      ? `${esc(genitive(q.guesserName))} tahtası`
+      : 'Senin tahtan'
+    : q.isMine
+      ? `${esc(genitive(q.guesserName))} tahmini`
+      : 'Senin tahminin';
   const truthLabel = q.isMine ? 'Senin cevabın' : `${esc(genitive(q.ownerName))} cevabı`;
 
   const afterText =
@@ -985,6 +1091,12 @@ function renderReveal() {
   const readyNote = s.readyNext
     ? `${esc(s.rivalName || 'Eşin')} de basınca devam edilecek…`
     : `${q.number}. soru tamamlandı. İkiniz de Devam’a basınca ${afterText}.`;
+
+  const hangmanNote = isHangman
+    ? `<p class="hint center" style="margin-top:12px">${q.hangman.lives} can kaldı · ${
+        q.hangman.wrong.length
+      } yanlış harf</p>`
+    : '';
 
   $('playBody').innerHTML = `
     ${scorebarHtml(s)}
@@ -1005,6 +1117,7 @@ function renderReveal() {
           <p>${esc(q.answer)}</p>
         </div>
       </div>
+      ${hangmanNote}
     </div>
     <button class="btn btn-primary btn-block" data-action="continueReveal" ${
       s.readyNext ? 'disabled' : ''
@@ -1024,11 +1137,15 @@ function entriesHtml(entries) {
       .map((e) => {
         const ok = e.points > 0;
         const no = e.index ? `<span class="ri-no">${esc(e.index)}.</span>` : '';
+        const detail =
+          e.mode === 'hangman'
+            ? `Harf harf${e.wrongCount ? ` · ${e.wrongCount} yanlış` : ''}`
+            : `${esc(e.guesserName)}: <b>${e.guess ? esc(e.guess) : '—'}</b>`;
         return `<div class="result-item">
           <div class="mark ${ok ? 'ok' : 'no'}">${ok ? (e.points >= 10 ? '🎯' : '✨') : '✖'}</div>
           <div class="ri-body">
             <div class="ri-q">${no} ${esc(e.question)}</div>
-            <div class="ri-a">${esc(e.guesserName)}: <b>${e.guess ? esc(e.guess) : '—'}</b> · Doğru: <b>${esc(e.answer)}</b></div>
+            <div class="ri-a">${detail} · Doğru: <b>${esc(e.answer)}</b></div>
           </div>
           <div class="ri-pts ${ok ? '' : 'zero'}">+${e.points}</div>
         </div>`;
@@ -1200,6 +1317,12 @@ document.addEventListener('click', (event) => {
       app.setupKey = '';
       renderSetup();
       break;
+    case 'mode':
+      if (!app.setup) break;
+      currentSetupItem().mode = btn.dataset.mode === 'hangman' ? 'hangman' : 'text';
+      app.setupKey = '';
+      renderSetup();
+      break;
     case 'suggest': {
       if (!app.setup) break;
       const item = currentSetupItem();
@@ -1231,6 +1354,14 @@ document.addEventListener('click', (event) => {
       renderSetup();
       const answer = $('qAnswer');
       if (answer) answer.focus();
+      break;
+    }
+    case 'hangmanLetter': {
+      if (!app.state || app.state.phase !== 'play') break;
+      const letter = btn.dataset.letter;
+      if (!letter) break;
+      btn.disabled = true;
+      socket.emit('hangman_letter', { letter });
       break;
     }
     case 'shuffle':

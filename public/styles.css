@@ -780,6 +780,41 @@ input[type="text"]:focus {
   cursor: pointer;
 }
 
+.mode-label {
+  margin-top: 13px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.mode-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 7px;
+}
+
+.mode-chip {
+  flex: 1;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  padding: 10px 8px;
+  cursor: pointer;
+  transition: all 0.16s;
+}
+
+.mode-chip.on {
+  color: #2a0a1b;
+  background: linear-gradient(120deg, var(--peach), var(--rose));
+  border-color: transparent;
+}
+
 .suggest-head {
   display: flex;
   align-items: center;
@@ -1099,6 +1134,90 @@ input[type="text"]:focus {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.hm-board {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 8px 0 14px;
+}
+
+.hm-cell {
+  width: 32px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.22);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--mint);
+}
+
+.hm-cell.open {
+  background: rgba(99, 226, 192, 0.1);
+  border-radius: 8px 8px 0 0;
+}
+
+.hm-gap {
+  width: 10px;
+}
+
+.hm-lives {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.hm-lives .off {
+  filter: grayscale(1);
+  opacity: 0.25;
+}
+
+.hm-lives span:last-child {
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+.hm-wrong {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--danger);
+  margin: -2px 0 10px;
+  letter-spacing: 0.04em;
+}
+
+.hm-keyboard {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+
+.hm-key {
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--card-strong);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+.hm-key.used,
+.hm-key:disabled {
+  opacity: 0.25;
+}
+
+.hm-key:active {
+  background: rgba(255, 95, 143, 0.2);
 }
 
 .guess-input {
