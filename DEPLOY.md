@@ -37,7 +37,30 @@ Notlar:
 - Yeniden başlatmada oda belleği sıfırlanır (oyun sırasında sorun olmaz).
 - Adresin alt alan adını Render ayarlarından değiştirebilirsin.
 
-### Neden Vercel değil?
+### Güncelleme akışı (push → otomatik deploy)
+
+`render.yaml` içinde `autoDeploy: true` olduğu için **`main` dalına yapılan her push otomatik deploy tetikler**. Ayrıca bir şey yapmana gerek yok.
+
+1. Değişikliği yap ve test et: `npm test`
+2. Push et:
+
+   ```bash
+   git add -A
+   git commit -m "Kisa aciklama"
+   git push
+   ```
+
+3. Render → servis → **Events** / **Logs** sekmesinde yeni deployu izle. "Deploy live" yazınca site güncellenmiş olur (genelde 1–2 dk).
+4. Siteyi yenile. O sırada açık olan eski sekmeler eski JS'i çalıştırmaya devam eder; onları da yenile.
+
+Önemli notlar:
+
+- Deploy sırasında servis yeniden başlar: **açık WebSocket bağlantıları kopar ve bellekteki odalar sıfırlanır.** Oyun ortasında deploy etme; turlar arasında yap.
+- Otomatik deploy kapalıysa: **Settings → Build & Deploy → Auto-Deploy → Yes**. Ya da **Manual Deploy → Deploy latest commit**.
+- `render.yaml` içindeki plan/env/build komutu gibi ayarlar değişirse Render Blueprint senkronizasyonu isteyebilir. Sıradan kod değişiklikleri otomatik akar.
+- Deploy başarısız olursa **Logs**'ta build/start hatası görünür; son commit'i düzeltip tekrar push etmek yeterlidir.
+
+## Neden Vercel değil?
 
 Vercel'de WebSocket desteği Ekim 2026'da genel kullanıma açıldı, ancak bu oyun için uygun değil:
 
