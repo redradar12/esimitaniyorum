@@ -109,14 +109,15 @@ set CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
 
 ---
 
-## İnternete taşıma (isteğe bağlı)
+## İnternete taşıma (online oynama)
 
-Telefonlar aynı Wi-Fi'de olmak zorunda kalmasın istersen uygulamayı **WebSocket/Socket.IO destekleyen** bir sunucuya yükle:
+Telefonlar aynı Wi-Fi'de olmak zorunda kalmasın istersen uygulamayı internete taşıyabilirsin. **Render** ile ücretsiz ve kalıcı bir link 5–10 dakikada hazır olur; Vercel bu oyun için uygun değildir (nedenleriyle birlikte).
 
-- **Render**, **Railway**, **Fly.io** gibi servisler uygun.
-- Başlatma komutu: `npm start`
+➡️ Adım adım rehber: **[DEPLOY.md](DEPLOY.md)**
+
+- Hazır dosyalar: `render.yaml` (Blueprint), `Dockerfile`, `/saglik` sağlık kontrolü.
 - `PORT` ortam değişkeni otomatik kullanılır.
-- Yüklendikten sonra tek yapılması gereken: iki telefon da o adrese girsin, biri oda kursun, diğeri QR/kod ile katılsın.
+- Hızlı deneme için: `cloudflared tunnel --url http://localhost:4173`
 
 ---
 
