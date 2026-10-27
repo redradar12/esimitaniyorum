@@ -49,7 +49,7 @@ Varsayılan adres: **http://localhost:4173**
 | Aşama | Ne oluyor |
 | --- | --- |
 | **Lobi** | Oda kodu + QR kod oluşur, eşin katılır. |
-| **Soru hazırlığı** | Herkes kendisi hakkında 5 soru ve cevabını yazar. Kategori seçebilir, hazır sorulardan seçebilir, "Soru bulamıyorum, sen seç" diyebilir. |
+| **Soru hazırlığı** | Herkes kendisi hakkında 5 soru ve cevabını yazar. **Karışık** kategori (tüm banka) veya 10 kategoriden biri seçilir. “Tümünü gör” ile 203 soru aranıp seçilebilir; öneriler tekrar etmez. |
 | **Tahmin** | Sorular sırayla gelir: A1, B1, A2, B2… Sorunun sahibi beklemede, eşi **45 saniye** içinde cevabı yazar. |
 | **Sonuç** | Tahmin ile gerçek cevap yan yana gösterilir, puan eklenir. |
 | **Tur sonu** | 10 soru biter, tur skoru ve tüm cevaplar listelenir. İki taraf da "Sonraki 5 soru" derse yeni tur başlar. |
@@ -100,6 +100,7 @@ esimitanıyorum/
 ```bash
 npm test        # Oda kurma, 10 soru, puanlama, yeni tur, final, yeniden oynama
 npm run gorsel  # Chrome'u 390x844 mobil görünümde açar, test/screens'e ekran görüntüleri kaydeder
+npm run sorular # Karışık kategori, tüm sorular listesi, arama, tekrarsız öneriler
 ```
 
 `npm run gorsel` için Chrome gerekir. Farklı bir konumdaysa:

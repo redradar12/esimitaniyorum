@@ -21,7 +21,28 @@ const BANK = window.SORU_BANKASI;
 
 const ALL_QUESTIONS = BANK.flatMap((c) => c.questions.map((q) => ({ q, category: c.id })));
 
-const catById = (id) => BANK.find((c) => c.id === id) || BANK[0];
+/** "Karışık" sanal kategorisi: öneriler 203 sorunun tamamından gelir. */
+const MIXED = { id: 'karisik', label: 'Karışık', emoji: '🎲', questions: [] };
+const CATEGORIES = [MIXED, ...BANK];
+
+const catById = (id) => CATEGORIES.find((c) => c.id === id) || BANK[0];
+
+const questionPool = (categoryId) =>
+  categoryId === 'karisik' ? ALL_QUESTIONS.map((x) => x.q) : catById(categoryId).questions;
+
+const normText = (value) =>
+  String(value || '')
+    .toLocaleLowerCase('tr-TR')
+    .replace(/ç/g, 'c')
+    .replace(/ğ/g, 'g')
+    .replace(/ı/g, 'i')
+    .replace(/ö/g, 'o')
+    .replace(/ş/g, 's')
+    .replace(/ü/g, 'u')
+    .replace(/â/g, 'a')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 /* ------------------------------------------------------------------ */
 /*  Yardımcılar                                                        */
@@ -129,6 +150,8 @@ const app = {
   partnerTyping: false,
   skew: 0,
   lastGuessSentAt: 0,
+  usedQuestions: new Set(),
+  listCategory: 'karisik',
 };
 
 let currentScreen = 'home';
@@ -148,7 +171,9 @@ function goHome() {
   app.setupKey = '';
   app.playKey = '';
   app.submitting = false;
+  app.usedQuestions = new Set();
   $('pausedOverlay').hidden = true;
+  $('listModal').hidden = true;
   showScreen('home');
   if (location.search) {
     history.replaceState(null, '', location.pathname);
@@ -291,8 +316,8 @@ function newSetup(round) {
   return {
     round,
     step: 0,
-    items: Array.from({ length: 5 }, (_, i) => ({
-      category: BANK[i % BANK.length].id,
+    items: Array.from({ length: 5 }, () => ({
+      category: 'karisik',
       text: '',
       answer: '',
     })),
@@ -301,14 +326,20 @@ function newSetup(round) {
 
 function ensureSetup(s) {
   if (!app.setup || app.setup.round !== s.round) {
+    if (s.round === 1) app.usedQuestions = new Set();
     app.setup = newSetup(s.round);
     app.setupKey = '';
   }
 }
 
-function suggestionsFor(categoryId, count) {
-  const cat = catById(categoryId);
-  return shuffle(cat.questions).slice(0, count);
+function suggestionsFor(categoryId, count, exclude = []) {
+  const source = questionPool(categoryId);
+  if (!source.length) return [];
+  const skip = new Set(exclude.filter(Boolean));
+  const fresh = source.filter((q) => !skip.has(q) && !app.usedQuestions.has(q));
+  const rest = source.filter((q) => !skip.has(q));
+  const pool = fresh.length >= count ? fresh : rest.length ? rest : source;
+  return shuffle(pool).slice(0, count);
 }
 
 function renderSetup() {
@@ -328,7 +359,12 @@ function renderSetup() {
   app.setupKey = key;
 
   const item = app.setup.items[app.setup.step];
-  const suggestions = suggestionsFor(item.category, 3);
+  const chosenElsewhere = app.setup.items
+    .filter((_, index) => index !== app.setup.step)
+    .map((it) => it.text)
+    .filter(Boolean);
+  const suggestions = suggestionsFor(item.category, 3, [...chosenElsewhere, item.text]);
+  const sourceCount = questionPool(item.category).length;
   const isLast = app.setup.step === 4;
 
   $('setupBody').innerHTML = `
@@ -350,7 +386,7 @@ function renderSetup() {
       <div class="q-label"><span>Kendinle ilgili</span><b>${app.setup.step + 1}</b></div>
 
       <div class="cat-row">
-        ${BANK.map(
+        ${CATEGORIES.map(
           (c) =>
             `<button type="button" class="cat-chip ${
               c.id === item.category ? 'on' : ''
@@ -362,6 +398,10 @@ function renderSetup() {
       <input id="qText" type="text" maxlength="120" placeholder="Örn. En sevdiğim renk ne?"
              value="${esc(item.text)}" enterkeyhint="next" />
 
+      <div class="suggest-head">
+        <span>Öneriler</span>
+        <button type="button" class="link-small" data-action="browse">Tümünü gör · ${sourceCount}</button>
+      </div>
       <div class="chip-list">
         ${suggestions
           .map(
@@ -512,10 +552,14 @@ function prevStep() {
 
 function shuffleCurrent() {
   const item = currentSetupItem();
-  const options = suggestionsFor(item.category, 6).filter((q) => q !== item.text);
-  const q = options[0] || pick(ALL_QUESTIONS).q;
-  item.text = q;
-  item.answer = item.answer; // koru
+  const texts = app.setup.items.map((it) => it.text).filter(Boolean);
+  const options = suggestionsFor(item.category, 8, [...texts, item.text]);
+  if (!options.length) {
+    toast('Bu kategoride yeni soru kalmadı. Başka bir kategori dene.');
+    return;
+  }
+  item.text = options[0];
+  app.usedQuestions.add(item.text);
   app.setupKey = '';
   renderSetup();
   const answer = $('qAnswer');
@@ -523,16 +567,56 @@ function shuffleCurrent() {
 }
 
 function autofill() {
-  const chosen = shuffle(ALL_QUESTIONS).slice(0, 5);
+  const fresh = ALL_QUESTIONS.filter((x) => !app.usedQuestions.has(x.q));
+  const pool = shuffle(fresh.length >= 5 ? fresh : ALL_QUESTIONS);
+  const chosen = pool.slice(0, 5);
   app.setup.items = app.setup.items.map((item, i) => ({
     ...item,
     category: chosen[i].category,
     text: chosen[i].q,
   }));
+  chosen.forEach((x) => app.usedQuestions.add(x.q));
   app.setup.step = 0;
   app.setupKey = '';
   renderSetup();
   toast('5 soru hazırladım — şimdi cevaplarını yaz 💫');
+}
+
+/* ------------------------------------------------------------------ */
+/*  Tüm sorular listesi                                                */
+/* ------------------------------------------------------------------ */
+
+function openQuestionList(categoryId) {
+  app.listCategory = categoryId || 'karisik';
+  $('listSearch').value = '';
+  renderQuestionList();
+  $('listModal').hidden = false;
+}
+
+function closeQuestionList() {
+  $('listModal').hidden = true;
+}
+
+function renderQuestionList() {
+  const id = app.listCategory;
+  const source =
+    id === 'karisik'
+      ? ALL_QUESTIONS
+      : catById(id).questions.map((q) => ({ q, category: id }));
+  const term = normText($('listSearch').value);
+  const filtered = term ? source.filter((x) => normText(x.q).includes(term)) : source;
+  const label = id === 'karisik' ? 'Tüm sorular' : catById(id).label;
+
+  $('listTitle').textContent = `${label} · ${source.length}`;
+  $('listBody').innerHTML = filtered.length
+    ? filtered
+        .map(
+          (x) => `<button type="button" class="q-item ${
+            app.usedQuestions.has(x.q) ? 'used' : ''
+          }" data-action="pickQuestion" data-q="${esc(x.q)}">${esc(x.q)}</button>`
+        )
+        .join('')
+    : '<p class="q-empty">Aramana uygun soru yok.</p>';
 }
 
 function submitQuestions() {
@@ -550,6 +634,7 @@ function submitQuestions() {
   }
 
   app.submitting = true;
+  app.setup.items.forEach((item) => app.usedQuestions.add(item.text.trim()));
   const questions = app.setup.items.map((item) => ({
     text: item.text.trim(),
     answer: item.answer.trim(),
@@ -972,11 +1057,31 @@ document.addEventListener('click', (event) => {
       if (!app.setup) break;
       const item = currentSetupItem();
       item.text = btn.dataset.q || '';
+      app.usedQuestions.add(item.text);
       const input = $('qText');
       if (input) input.value = item.text;
       document
         .querySelectorAll('.suggest-chip')
         .forEach((chip) => chip.classList.toggle('on', chip.dataset.q === item.text));
+      const answer = $('qAnswer');
+      if (answer) answer.focus();
+      break;
+    }
+    case 'browse':
+      if (!app.setup) break;
+      openQuestionList(currentSetupItem().category);
+      break;
+    case 'closeList':
+      closeQuestionList();
+      break;
+    case 'pickQuestion': {
+      if (!app.setup) break;
+      const item = currentSetupItem();
+      item.text = btn.dataset.q || '';
+      app.usedQuestions.add(item.text);
+      closeQuestionList();
+      app.setupKey = '';
+      renderSetup();
       const answer = $('qAnswer');
       if (answer) answer.focus();
       break;
@@ -1153,6 +1258,11 @@ $('helpOk').addEventListener('click', () => {
 });
 $('helpModal').addEventListener('click', (e) => {
   if (e.target === $('helpModal')) $('helpModal').hidden = true;
+});
+
+$('listSearch').addEventListener('input', renderQuestionList);
+$('listModal').addEventListener('click', (e) => {
+  if (e.target === $('listModal')) closeQuestionList();
 });
 
 /* ------------------------------------------------------------------ */

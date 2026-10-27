@@ -8,7 +8,8 @@
     "start": "node server.js",
     "dev": "node server.js",
     "test": "node test/flow.js",
-    "gorsel": "node test/visual.js"
+    "gorsel": "node test/visual.js",
+    "sorular": "node test/browse.js"
   },
   "engines": {
     "node": ">=18"

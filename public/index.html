@@ -144,12 +144,24 @@
       <ol class="steps">
         <li><b>Oda kur.</b> Takma adını yaz, oda kodu oluşsun.</li>
         <li><b>Eşin katılsın.</b> Kodu kendi telefonuna girsin. Aynı Wi-Fi’de olmalısınız.</li>
-        <li><b>5 soru hazırla.</b> Kendinle ilgili 5 soru ve cevabını yaz. 10 kategoride 200+ hazır soru var; soru bulamazsan “Bana soru öner”e bas.</li>
+        <li><b>5 soru hazırla.</b> Kendinle ilgili 5 soru ve cevabını yaz. 10 kategoride 200+ hazır soru var; “Tümünü gör” ile hepsine bakabilir, arayabilirsin.</li>
         <li><b>Sırayla tahmin et.</b> Sıra eşinin sorusuna gelince onun cevabını tahmin et. 45 saniyen var.</li>
         <li><b>Puan toplayın.</b> Tam isabet 10, yakın cevap 6–8 puan. Tur bitince yeni 5 soruya geçin.</li>
       </ol>
       <p class="hint">İpucu: Cevapları kısa tut (ör. “Adana kebap”, “mavi”). Böylece eşleşmesi kolay olur.</p>
       <button id="helpOk" class="btn btn-primary">Anladım</button>
+    </div>
+  </div>
+
+  <!-- ================= TÜM SORULAR ================= -->
+  <div id="listModal" class="modal" hidden>
+    <div class="modal-card list-modal">
+      <div class="modal-head">
+        <h2 id="listTitle">Tüm sorular</h2>
+        <button type="button" class="icon-btn" data-action="closeList" aria-label="Kapat">✕</button>
+      </div>
+      <input id="listSearch" type="search" placeholder="Soru ara…" autocomplete="off" />
+      <div id="listBody" class="question-list"></div>
     </div>
   </div>
 

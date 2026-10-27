@@ -709,6 +709,35 @@ input[type="text"]:focus {
   cursor: pointer;
 }
 
+.suggest-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(182, 164, 207, 0.75);
+}
+
+.link-small {
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--peach);
+  background: none;
+  border: none;
+  padding: 4px 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
 .hint {
   margin: 8px 0 0;
   font-size: 0.78rem;
@@ -1368,6 +1397,59 @@ input[type="text"]:focus {
 .modal-card .btn-primary {
   width: 100%;
   margin-top: 6px;
+}
+
+.modal-card.list-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: 84vh;
+  overflow: hidden;
+}
+
+.list-modal #listSearch {
+  flex: 0 0 auto;
+  margin: 2px 0 12px;
+}
+
+.question-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.q-item {
+  width: 100%;
+  font-family: inherit;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  text-align: left;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  padding: 11px 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.q-item:active {
+  background: rgba(255, 95, 143, 0.18);
+}
+
+.q-item.used {
+  opacity: 0.45;
+}
+
+.q-empty {
+  margin: 20px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.86rem;
 }
 
 .steps {
