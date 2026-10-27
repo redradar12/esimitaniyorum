@@ -122,6 +122,17 @@ async function waitState(page, check, label) {
       'Ahmet katıldı'
     );
     await waitState(ayse, "app.state && app.state.phase === 'setup'", 'Ayşe setup');
+
+    const intro = await ayse.evaluate(() => ({
+      open: !document.getElementById('introModal').hidden,
+      names: document.getElementById('introNames').textContent,
+    }));
+    console.log(`  tanıtım: ${intro.open ? 'açık' : 'kapalı'} — ${intro.names}`);
+    await shot(ayse, '04a-tanitim', false);
+    await ayse.click('#introStart');
+    await ahmet.evaluate(() => document.getElementById('introStart')?.click());
+    await sleep(250);
+
     await shot(ayse, '04-soru-hazirligi');
 
     console.log('\nSorular');

@@ -212,6 +212,33 @@ body {
   border: 1px solid rgba(255, 159, 118, 0.22);
 }
 
+.hero-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 14px 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.hero-steps b {
+  width: 16px;
+  height: 16px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 95, 143, 0.2);
+  color: var(--peach);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.hero-steps span {
+  opacity: 0.5;
+}
+
 /* ---------------- Kartlar & form ---------------- */
 
 .card {
@@ -754,6 +781,49 @@ input[type="text"]:focus {
   width: 100%;
 }
 
+/* Yönlendirme kutusu */
+.guide {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 13px;
+  border-radius: 14px;
+  background: rgba(255, 159, 118, 0.09);
+  border: 1px solid rgba(255, 159, 118, 0.22);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.guide .g-emoji {
+  font-size: 1.05rem;
+  line-height: 1.25;
+  flex: 0 0 auto;
+}
+
+.guide b {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.84rem;
+  color: var(--peach);
+}
+
+.guide p {
+  margin: 0;
+}
+
+.players-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.players-strip .mini-player {
+  font-size: 0.76rem;
+  padding: 5px 10px 5px 5px;
+}
+
 .btn-row {
   display: flex;
   gap: 10px;
@@ -916,6 +986,31 @@ input[type="text"]:focus {
   font-variant-numeric: tabular-nums;
   min-width: 32px;
   text-align: right;
+}
+
+.turn-banner {
+  display: block;
+  padding: 11px 14px;
+  border-radius: 14px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  border: 1px solid transparent;
+}
+
+.turn-banner b {
+  color: var(--text);
+}
+
+.turn-banner.go {
+  color: #ffe3ec;
+  background: rgba(255, 95, 143, 0.16);
+  border-color: rgba(255, 95, 143, 0.38);
+}
+
+.turn-banner.wait {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.045);
+  border-color: var(--line-soft);
 }
 
 .question-card {
@@ -1397,6 +1492,35 @@ input[type="text"]:focus {
 .modal-card .btn-primary {
   width: 100%;
   margin-top: 6px;
+}
+
+.intro-card .intro-names {
+  margin: 2px 0 8px;
+  font-size: 1.2rem;
+  font-weight: 800;
+  text-align: center;
+  letter-spacing: -0.01em;
+  background: linear-gradient(100deg, var(--rose), var(--peach));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.intro-card .intro-lead {
+  margin: 0 0 16px;
+  text-align: center;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.intro-card .intro-steps {
+  margin-bottom: 16px;
+}
+
+.intro-card .link-btn {
+  display: block;
+  margin: 10px auto 0;
 }
 
 .modal-card.list-modal {

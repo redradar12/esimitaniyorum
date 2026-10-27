@@ -28,6 +28,7 @@
         <h1>Eşimi<br /><span>Tanıyorum</span></h1>
         <p class="tagline">Birbirinizi ne kadar tanıyorsunuz?</p>
         <div class="hero-meta">🎲 200+ hazır soru · 10 kategori</div>
+        <p class="hero-steps"><b>1</b> Oda kur <span>·</span> <b>2</b> Eşin katılsın <span>·</span> <b>3</b> 5 soru, 5 tahmin</p>
       </div>
 
       <div class="card stack">
@@ -132,6 +133,25 @@
       </div>
       <div id="finalBody"></div>
     </section>
+  </div>
+
+  <!-- ================= İLK GİRİŞ TANITIMI ================= -->
+  <div id="introModal" class="modal" hidden>
+    <div class="modal-card intro-card">
+      <div class="modal-head">
+        <h2>Hazırsınız! 🎉</h2>
+        <button type="button" class="icon-btn" data-action="closeIntro" aria-label="Kapat">✕</button>
+      </div>
+      <p class="intro-names" id="introNames">Ayşe 💞 Ahmet</p>
+      <p class="intro-lead">Odaya birlikte girdiniz. Şimdi sırayla birbirinizi tanıma zamanı.</p>
+      <ol class="steps intro-steps">
+        <li><b>Kendinle ilgili 5 soru yaz.</b> Her sorunun doğru cevabını da ekle. Örnek: “En sevdiğim renk ne?” → “Mavi”.</li>
+        <li><b>Eşin tahmin etsin.</b> Sıra onun sorusuna gelince bu kez sen tahmin edeceksin. Her soru için 45 saniyen var.</li>
+        <li><b>Puan toplayın.</b> Tam bilirsen 10 puan. Tur bitince ikiniz de yeni 5 soru hazırlayıp devam edersiniz.</li>
+      </ol>
+      <button id="introStart" class="btn btn-primary" data-action="closeIntro">Başla, sorularımı yazayım →</button>
+      <button class="link-btn" data-action="openHelp">Detaylı anlatım</button>
+    </div>
   </div>
 
   <!-- ================= YARDIM ================= -->

@@ -61,6 +61,25 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     await a.waitForFunction("app.state && app.state.phase === 'setup'", { timeout: 15000 });
     await sleep(400);
 
+    console.log('\nİlk giriş tanıtımı');
+    const intro = await a.evaluate(() => ({
+      open: !document.getElementById('introModal').hidden,
+      names: document.getElementById('introNames').textContent,
+      hasStart: !!document.getElementById('introStart'),
+    }));
+    check(intro.open, 'Tanıtım otomatik açıldı');
+    check(intro.names.includes('Ayşe') && intro.names.includes('Ahmet'), 'Tanıtımda iki isim var', intro.names);
+    check(intro.hasStart, 'Başla butonu var');
+    await a.screenshot({ path: path.join(OUT, '19-tanitim.png') });
+    await a.click('#introStart');
+    await sleep(300);
+    const introClosed = await a.evaluate(() => ({
+      hidden: document.getElementById('introModal').hidden,
+      flag: localStorage.getItem('esimi.guide.v1'),
+    }));
+    check(introClosed.hidden, 'Başla ile tanıtım kapandı');
+    check(introClosed.flag === '1', 'Tanıtım bir daha gösterilmeyecek şekilde işaretlendi');
+
     console.log('\nVarsayılan görünüm');
     const initial = await a.evaluate(() => ({
       chipCount: document.querySelectorAll('.cat-chip').length,

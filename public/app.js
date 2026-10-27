@@ -11,6 +11,7 @@ const socket = io({
 
 const SESSION_KEY = 'esimi.session';
 const NAME_KEY = 'esimi.name';
+const GUIDE_KEY = 'esimi.guide.v1';
 const $ = (id) => document.getElementById(id);
 
 /* ------------------------------------------------------------------ */
@@ -49,10 +50,6 @@ const normText = (value) =>
 /* ------------------------------------------------------------------ */
 
 const randomInt = (n) => Math.floor(Math.random() * n);
-
-function pick(arr) {
-  return arr[randomInt(arr.length)];
-}
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -102,6 +99,21 @@ function genitive(name) {
   const base = map[lastVowel] || 'in';
   const endsWithVowel = vowels.includes(lower[lower.length - 1]);
   return `${clean}'${endsWithVowel ? 'n' + base : base}`;
+}
+
+/** Bulunma hâli: Ayşe'de, Ahmet'te, Onur'da */
+function locative(name) {
+  const clean = String(name || '').trim();
+  if (!clean) return '';
+  const lower = clean.toLocaleLowerCase('tr-TR');
+  const vowels = 'aeıioöuüâîû';
+  let lastVowel = '';
+  for (const ch of lower) {
+    if (vowels.includes(ch)) lastVowel = ch;
+  }
+  const hard = 'pçtkfhsş'.includes(lower[lower.length - 1]);
+  const wide = ['a', 'ı', 'o', 'u', 'â', 'û'].includes(lastVowel);
+  return `${clean}'${hard ? 't' : 'd'}${wide ? 'a' : 'e'}`;
 }
 
 function readSession() {
@@ -250,6 +262,7 @@ function route() {
   } else if (s.phase === 'setup') {
     showScreen('setup');
     renderSetup();
+    maybeShowIntro(s);
   } else if (s.phase === 'play') {
     showScreen('play');
     renderPlay();
@@ -332,6 +345,42 @@ function ensureSetup(s) {
   }
 }
 
+function maybeShowIntro(s) {
+  if (!s.players || s.players.length < 2) return;
+  let seen = false;
+  try {
+    seen = localStorage.getItem(GUIDE_KEY) === '1';
+  } catch (_error) {
+    seen = false;
+  }
+  if (seen) return;
+  const rival = s.players.find((p) => !p.isMe);
+  $('introNames').textContent = `${s.me.name} 💞 ${rival ? rival.name : 'Eşin'}`;
+  $('introModal').hidden = false;
+}
+
+function closeIntro() {
+  $('introModal').hidden = true;
+  try {
+    localStorage.setItem(GUIDE_KEY, '1');
+  } catch (_error) {
+    /* yoksay */
+  }
+}
+
+function setupPlayersHtml(s) {
+  return s.players
+    .map((p) => {
+      const label = p.isMe ? 'Sen' : p.name;
+      const status = p.ready ? 'hazır' : p.isMe ? 'yazıyorsun…' : 'yazıyor…';
+      return `<div class="mini-player ${p.ready ? 'ready' : ''}">
+        <div class="avatar ${p.isMe ? '' : 'alt'}">${esc(initial(p.name))}</div>
+        ${esc(label)} · ${status}
+      </div>`;
+    })
+    .join('');
+}
+
 function suggestionsFor(categoryId, count, exclude = []) {
   const source = questionPool(categoryId);
   if (!source.length) return [];
@@ -355,7 +404,11 @@ function renderSetup() {
   }
 
   const key = `${s.round}:${app.setup.step}`;
-  if (app.setupKey === key) return;
+  if (app.setupKey === key) {
+    const strip = $('setupPlayers');
+    if (strip) strip.innerHTML = setupPlayersHtml(s);
+    return;
+  }
   app.setupKey = key;
 
   const item = app.setup.items[app.setup.step];
@@ -368,6 +421,16 @@ function renderSetup() {
   const isLast = app.setup.step === 4;
 
   $('setupBody').innerHTML = `
+    <div class="players-strip" id="setupPlayers">${setupPlayersHtml(s)}</div>
+
+    <div class="guide">
+      <span class="g-emoji">✍️</span>
+      <div>
+        <b>Şimdi senin sıran.</b>
+        <p>Kendinle ilgili bir soru ve doğru cevabını yaz. Eşin bu cevabı tahmin edecek.</p>
+      </div>
+    </div>
+
     <div class="setup-progress">
       <div class="dots">
         ${app.setup.items
@@ -413,16 +476,16 @@ function renderSetup() {
       </div>
       <button type="button" class="shuffle-btn" data-action="shuffle">🎲 Bana soru öner</button>
 
-      <label class="field-label" for="qAnswer">Senin cevabın</label>
+      <label class="field-label" for="qAnswer">Doğru cevap</label>
       <input id="qAnswer" type="text" maxlength="60" placeholder="Örn. Mavi"
              value="${esc(item.answer)}" enterkeyhint="${isLast ? 'done' : 'next'}" />
-      <p class="hint">Eşin bu cevabı tahmin edecek. Kısa ve net cevaplar eşleşmeyi kolaylaştırır.</p>
+      <p class="hint">Senin cevabın bu. Eşin tahmin ederken kısa ve net olması işini kolaylaştırır (ör. “Mavi”, “Kebap”).</p>
       <p class="hint error" id="setupError" hidden></p>
 
       <div class="btn-row">
         <button type="button" class="btn" data-action="prevStep" ${app.setup.step === 0 ? 'disabled' : ''}>Geri</button>
         <button type="button" class="btn primary" data-action="${isLast ? 'submitQuestions' : 'nextStep'}">
-          ${isLast ? 'Soruları gönder 💌' : 'İleri →'}
+          ${isLast ? 'Soruları gönder 💌' : 'Kaydet ve devam →'}
         </button>
       </div>
     </div>
@@ -484,11 +547,11 @@ function renderSetupWaiting(s) {
   $('setupBody').innerHTML = `
     <div class="card waiting-card">
       <span class="big">💞</span>
-      <h3>Soruların hazır!</h3>
+      <h3>Soruların hazır! ✅</h3>
       <p>${
         rivalReady
-          ? 'Eşin de hazır. Oyun birazdan başlıyor…'
-          : 'Eşin de sorularını hazırlayınca oyun başlıyor.'
+          ? 'İkiniz de hazırsınız. Oyun birazdan başlıyor…'
+          : `${esc(rival ? rival.name : 'Eşin')} henüz yazıyor. O da gönderince oyun otomatik başlayacak.`
       }</p>
       <div class="mini-players">
         <div class="mini-player ready">
@@ -715,18 +778,23 @@ function renderPlay() {
       </div>
       <div class="card guess-box">
         <input id="guessInput" class="guess-input" type="text" maxlength="60"
-               placeholder="Cevabını yaz…" autocomplete="off" enterkeyhint="send" />
+               placeholder="Tahminini yaz…" autocomplete="off" enterkeyhint="send" />
         <button class="btn btn-primary btn-block" id="guessBtn">Cevapla 💘</button>
         <p class="hint center" style="margin:0">Tahminin ne kadar yakınsa puan o kadar yüksek.</p>
       </div>
     `;
 
+  const turnBanner = q.isMine
+    ? `<div class="turn-banner wait">⏳ <b>Sıra ${esc(locative(q.guesserName))}.</b> Senin cevabını tahmin ediyor, bekle.</div>`
+    : `<div class="turn-banner go">🎯 <b>Sıra sende!</b> ${esc(genitive(q.ownerName))} cevabını tahmin et.</div>`;
+
   $('playBody').innerHTML = `
     ${scorebarHtml(s)}
     <div class="timer-wrap">
       <div class="timer"><div class="timer-fill" id="timerFill"></div></div>
-      <span class="timer-text" id="timerText">${s.guessSeconds}</span>
+      <span class="timer-text" id="timerText">${s.guessSeconds} sn</span>
     </div>
+    ${turnBanner}
     ${body}
   `;
 
@@ -797,7 +865,7 @@ function updateTimer() {
   const ratio = Math.max(0, Math.min(1, left / total));
   fill.style.width = (ratio * 100).toFixed(1) + '%';
   fill.classList.toggle('low', ratio < 0.3);
-  text.textContent = Math.ceil(left / 1000);
+  text.textContent = Math.ceil(left / 1000) + ' sn';
 
   if (left <= 0 && !s.question.paused) {
     const btn = $('guessBtn');
@@ -847,7 +915,7 @@ function renderReveal() {
 
   const readyNote = s.readyNext
     ? `${esc(s.rivalName || 'Eşin')} de devam edince geçilecek…`
-    : '';
+    : 'Sıradaki soruya geçmek için ikiniz de Devam’a basın.';
 
   $('playBody').innerHTML = `
     ${scorebarHtml(s)}
@@ -936,7 +1004,7 @@ function renderRoundEnd() {
     <div class="card" style="text-align:center;padding:20px">
       <div style="font-size:2.2rem;margin-bottom:6px">🎉</div>
       <h2 style="margin:0;font-size:1.3rem">10 soru tamam!</h2>
-      <p class="hint" style="margin-top:6px">Şimdi yeni 5’er soru hazırlayın.</p>
+      <p class="hint" style="margin-top:6px">Yeni tura geçmek için ikiniz de aşağıdaki butona basın.</p>
     </div>
 
     ${scoreCardsHtml({ players: playersWithRound }, true)}
@@ -945,11 +1013,13 @@ function renderRoundEnd() {
       ${readyBtn}
       <button class="btn btn-ghost" data-action="endGame">Bitir</button>
     </div>
-    ${
-      s.otherReadyNext
-        ? '<p class="ready-note">Eşin sonraki tura geçmeye hazır.</p>'
-        : ''
-    }
+    <p class="ready-note">${
+      s.readyNext
+        ? 'Sen hazırsın. Eşin de basınca yeni soru ekranı açılacak.'
+        : s.otherReadyNext
+          ? 'Eşin hazır! Sen de “Sonraki 5 soru”ya bas.'
+          : 'Yeni 5 soru için ikiniz de “Sonraki 5 soru”ya basın.'
+    }</p>
 
     <div class="section-title">Bu turun soruları</div>
     ${entriesHtml(r.roundEntries)}
@@ -1045,6 +1115,13 @@ document.addEventListener('click', (event) => {
       );
       break;
     case 'help':
+      $('helpModal').hidden = false;
+      break;
+    case 'closeIntro':
+      closeIntro();
+      break;
+    case 'openHelp':
+      closeIntro();
       $('helpModal').hidden = false;
       break;
     case 'category':
@@ -1263,6 +1340,9 @@ $('helpModal').addEventListener('click', (e) => {
 $('listSearch').addEventListener('input', renderQuestionList);
 $('listModal').addEventListener('click', (e) => {
   if (e.target === $('listModal')) closeQuestionList();
+});
+$('introModal').addEventListener('click', (e) => {
+  if (e.target === $('introModal')) closeIntro();
 });
 
 /* ------------------------------------------------------------------ */
