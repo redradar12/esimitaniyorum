@@ -2,16 +2,23 @@
 
 /**
  * Uçtan uca oyun akışı testi.
- * Sunucuyu 3999 portunda ayağa kaldırır, iki sahte oyuncu ile oyunu oynar.
+ * Varsayılan olarak sunucuyu 3999 portunda ayağa kaldırır ve iki sahte oyuncu ile oyunu oynar.
  *
  *   npm test
+ *
+ * Yayındaki bir adresi test etmek için:
+ *
+ *   URL=https://esimi-taniyorum.onrender.com node test/flow.js
+ *   (PowerShell: $env:URL="https://..."; node test/flow.js)
  */
 
 const { spawn } = require('child_process');
 const { io } = require('socket.io-client');
 
 const PORT = 3999;
-const URL = `http://localhost:${PORT}`;
+const TARGET = (process.env.URL || '').trim().replace(/\/+$/, '');
+const BASE = TARGET || `http://localhost:${PORT}`;
+const REMOTE = Boolean(TARGET);
 
 let failures = 0;
 function check(condition, label, extra) {
@@ -24,7 +31,7 @@ function check(condition, label, extra) {
 }
 
 function makeClient(name) {
-  const socket = io(URL, { transports: ['websocket'], forceNew: true });
+  const socket = io(BASE, { transports: ['websocket'], forceNew: true });
   const client = {
     name,
     socket,
@@ -97,25 +104,29 @@ function questionsFor(prefix, answers) {
 }
 
 async function main() {
-  const server = spawn(process.execPath, ['server.js'], {
-    env: { ...process.env, PORT: String(PORT) },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  console.log(`\nHedef: ${BASE}${REMOTE ? ' (yayındaki sunucu)' : ' (yerel test sunucusu)'}`);
 
+  let server = null;
   let serverLog = '';
-  server.stdout.on('data', (d) => (serverLog += d.toString()));
-  server.stderr.on('data', (d) => (serverLog += d.toString()));
 
-  await new Promise((r) => setTimeout(r, 1200));
+  if (!REMOTE) {
+    server = spawn(process.execPath, ['server.js'], {
+      env: { ...process.env, PORT: String(PORT) },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    server.stdout.on('data', (d) => (serverLog += d.toString()));
+    server.stderr.on('data', (d) => (serverLog += d.toString()));
+    await new Promise((r) => setTimeout(r, 1200));
+  }
 
   try {
-    const health = await fetch(`${URL}/saglik`).then((r) => r.json());
+    const health = await fetch(`${BASE}/saglik`).then((r) => r.json());
     check(health.ok === true, 'Sunucu ayakta (/saglik)');
 
-    const info = await fetch(`${URL}/bilgi`).then((r) => r.json());
-    check(typeof info.url === 'string' && info.url.startsWith('http'), 'LAN adresi üretiliyor');
+    const info = await fetch(`${BASE}/bilgi`).then((r) => r.json());
+    check(typeof info.url === 'string' && info.url.startsWith('http'), 'Genel adres üretiliyor');
 
-    const qr = await fetch(`${URL}/qr.svg?oda=ABC12`);
+    const qr = await fetch(`${BASE}/qr.svg?oda=ABC12`);
     const qrBody = await qr.text();
     check(
       qr.ok && qr.headers.get('content-type').includes('svg') && qrBody.includes('<svg'),
@@ -270,7 +281,7 @@ async function main() {
   } finally {
     ayse.close();
     ahmet.close();
-    server.kill();
+    if (server) server.kill();
   }
 
   console.log('\n───────────────────────────────');

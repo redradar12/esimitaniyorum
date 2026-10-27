@@ -17,6 +17,21 @@ Uygulama tek bir kalıcı Node süreci + WebSocket kullanıyor. Bu yüzden **Ren
 3. 1–2 dakika içinde `https://esimi-taniyorum.onrender.com` gibi bir adres hazır olur.
 4. İki telefon da bu adrese girsin: biri **Yeni oda kur**sun, diğeri QR kodu okutsun veya kodu yazsın.
 
+**Deploy sonrası kontrol:** adresin gerçekten çalıştığını iki sahte oyuncuyla tam bir tur oynayarak doğrulayabilirsin:
+
+```bash
+set URL=https://esimi-taniyorum.onrender.com
+node test/flow.js
+```
+
+PowerShell:
+
+```powershell
+$env:URL="https://esimi-taniyorum.onrender.com"; node test/flow.js
+```
+
+Bu betik oda kurar, iki oyuncuyu bağlar, 5+5 soru gönderir, 10 soruyu oynar, puanları ve finali kontrol eder.
+
 Notlar:
 - **Free plan** 15 dakika hareketsizlikte uyur; ilk açılış 30–60 sn sürebilir. Oyun sırasında uyumaz.
 - Yeniden başlatmada oda belleği sıfırlanır (oyun sırasında sorun olmaz).
