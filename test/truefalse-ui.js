@@ -1,18 +1,22 @@
 'use strict';
 
 /**
- * Doğru mu Yanlış mı? arayüz testi:
- * ana sayfada mod seçimi, iddia kartı, Doğru/Yanlış butonları ve sonuç.
+ * Doğru mu Yanlış mı? (bağımsız mod) arayüz testi.
+ * Sunucu sistem ifadelerini sorar; iki oyuncu da cevaplar.
+ * 10 ifade oynanır, tur sonu ve final kontrol edilir.
  *
  *   npm run dogruyanlis-ui
  */
 
 const path = require('path');
+const { spawn } = require('child_process');
 const puppeteer = require('puppeteer-core');
+const { TRUE_FALSE } = require('../game-data');
 
 const CHROME =
   process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-const BASE = process.env.BASE_URL || 'http://127.0.0.1:4173';
+const PORT = 4182;
+const BASE = `http://127.0.0.1:${PORT}`;
 const OUT = path.join(__dirname, 'screens');
 
 let failures = 0;
@@ -24,26 +28,19 @@ const check = (ok, label, extra) => {
   }
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-async function fillStep(page, qtext, answer) {
-  await page.evaluate(
-    ({ qtext, answer }) => {
-      const t = document.getElementById('qText');
-      const a = document.getElementById('qAnswer');
-      t.value = qtext;
-      t.dispatchEvent(new Event('input', { bubbles: true }));
-      a.value = answer;
-      a.dispatchEvent(new Event('input', { bubbles: true }));
-      document
-        .querySelector('[data-action="nextStep"], [data-action="submitQuestions"]')
-        .click();
-    },
-    { qtext, answer }
-  );
-  await sleep(220);
-}
+const truthOf = (text) => {
+  const item = TRUE_FALSE.find((s) => s.text === text);
+  return item ? item.answer : null;
+};
 
 (async () => {
+  const server = spawn(process.execPath, ['server.js'], {
+    cwd: path.join(__dirname, '..'),
+    env: { ...process.env, PORT: String(PORT) },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  await sleep(1400);
+
   const browser = await puppeteer.launch({
     executablePath: CHROME,
     headless: true,
@@ -63,23 +60,18 @@ async function fillStep(page, qtext, answer) {
   }
 
   try {
-    console.log('\nAna sayfa mod seçimi');
+    console.log('\nMod seçimi ve oda');
     await a.goto(BASE, { waitUntil: 'networkidle2' });
-    const modes = await a.evaluate(() => document.querySelectorAll('.home-mode').length);
-    check(modes === 3, `3 oyun modu kartı var (${modes})`);
     await a.click('.home-mode[data-mode="truefalse"]');
     await sleep(200);
     const picked = await a.evaluate(() => ({
       mode: app.homeMode,
-      on: document.querySelector('.home-mode.on')?.dataset.mode,
       desc: document.getElementById('modeDesc')?.textContent,
     }));
     check(picked.mode === 'truefalse', 'Doğru/Yanlış modu seçildi');
-    check(picked.on === 'truefalse', 'Seçili kart işaretlendi');
-    check(picked.desc.includes('doğru mu yanlış mı'), 'Mod açıklaması güncellendi', picked.desc);
+    check(picked.desc.includes('doğru/yanlış'), 'Mod açıklaması güncellendi', picked.desc);
     await a.screenshot({ path: path.join(OUT, '26-ana-sayfa-modlar.png') });
 
-    console.log('\nOda');
     await a.type('#nameInput', 'Ayşe');
     await a.click('#createBtn');
     await a.waitForFunction("app.state && app.state.phase === 'lobby'", { timeout: 15000 });
@@ -87,84 +79,124 @@ async function fillStep(page, qtext, answer) {
     const lobby = await a.evaluate(() => ({
       mode: app.state.mode,
       label: document.getElementById('lobbyMode')?.textContent,
+      foot: document.getElementById('lobbyFoot')?.textContent,
     }));
-    check(lobby.mode === 'truefalse', 'Oda doğru/yanlış modunda kuruldu');
+    check(lobby.mode === 'truefalse', 'Oda doğru/yanlış modunda');
     check(lobby.label.includes('Doğru'), 'Lobide mod etiketi var', lobby.label);
+    check(lobby.foot.includes('oyun otomatik'), 'Lobide otomatik başlama yazıyor');
 
     await b.goto(BASE, { waitUntil: 'networkidle2' });
     await b.type('#nameInput', 'Ahmet');
     await b.type('#codeInput', code);
     await b.click('#joinBtn');
-    await a.waitForFunction("app.state && app.state.phase === 'setup'", { timeout: 15000 });
-    await sleep(500);
-    await a.click('#introStart');
-    await b.evaluate(() => document.getElementById('introStart')?.click());
 
-    const guide = await a.evaluate(() => document.querySelector('.guide')?.textContent);
-    check(guide.includes('Doğru mu Yanlış mı'), 'Hazırlık ekranı modu gösteriyor', guide);
-    check(guide.includes('doğru mu, yanlış mı'), 'Hazırlıkta mod açıklaması var');
-
-    for (const [qt, ans] of [
-      ['En sevdiğim renk?', 'Mavi'],
-      ['En sevdiğim yemek?', 'Kebap'],
-      ['En sevdiğim spor?', 'Futbol'],
-      ['Evcil hayvanım?', 'Kedi'],
-      ['Tatilde deniz mi dağ mı?', 'Deniz'],
-    ]) {
-      await fillStep(a, qt, ans);
-    }
-    await sleep(400);
-    for (const [qt, ans] of [
-      ['En sevdiğim renk?', 'Yeşil'],
-      ['En sevdiğim içecek?', 'Çay'],
-      ['Hangi takım?', 'Basketbol'],
-      ['Hangi hayvan?', 'Köpek'],
-      ['Tatil yerim?', 'Dağ'],
-    ]) {
-      await fillStep(b, qt, ans);
-    }
-
-    await b.waitForFunction(
-      "app.state && app.state.phase === 'play' && app.state.question && app.state.question.number === 1",
+    await a.waitForFunction(
+      "app.state && app.state.phase === 'play' && app.state.quiz",
       { timeout: 15000 }
     );
-    await sleep(1800);
+    await b.waitForFunction(
+      "app.state && app.state.phase === 'play' && app.state.quiz",
+      { timeout: 15000 }
+    );
+    await sleep(600);
 
-    console.log('\nİfade ekranı');
-    const claim = await b.evaluate(() => ({
-      shown: document.querySelector('.claim-card b')?.textContent.replace(/[“”]/g, '').trim(),
-      label: document.querySelector('.claim-label')?.textContent,
+    console.log('\nOyun doğrudan başladı');
+    const first = await a.evaluate(() => ({
+      screen: document.querySelector('.screen.active')?.id,
+      title: document.getElementById('playTitle')?.textContent,
+      counter: document.getElementById('playCounter')?.textContent,
       buttons: document.querySelectorAll('.tf-btn').length,
-      sub: document.querySelector('#playBody .q-sub')?.textContent,
-      ownerButtons: 0,
+      statement: document.querySelector('#playBody .question-text')?.textContent,
+      seconds: app.state.guessSeconds,
     }));
-    check(Boolean(claim.shown), 'İddia cevabı gösteriliyor', claim.shown);
-    check(claim.label === 'İDDİA', 'İddia etiketi var');
-    check(claim.buttons === 2, 'Doğru ve Yanlış butonları var');
-    check(claim.sub.includes('doğru mu'), 'Yönlendirme metni var', claim.sub);
-    await b.screenshot({ path: path.join(OUT, '27-dogru-yanlis.png') });
+    check(first.screen === 'screen-play', 'Soru hazırlığı atlandı');
+    check(first.title === 'Doğru mu Yanlış mı?', 'Başlık doğru');
+    check(first.counter === '1/10', 'Sayaç 1/10', first.counter);
+    check(first.buttons === 2, 'Doğru/Yanlış butonları var');
+    check(Boolean(first.statement), 'Sistem ifadesi gösteriliyor');
+    check(first.seconds === 15, '15 saniye');
+    await a.screenshot({ path: path.join(OUT, '27-dogru-yanlis.png') });
 
-    const ownerButtons = await a.evaluate(() => document.querySelectorAll('.tf-btn').length);
-    check(ownerButtons === 0, 'Soru sahibinde cevap butonları yok');
+    console.log('\n10 ifade');
+    let ayseTotal = 0;
+    let ahmetTotal = 0;
 
-    console.log('\nKarar');
-    const isTrue = claim.shown === 'Mavi';
-    await b.click(isTrue ? '.tf-btn.yes' : '.tf-btn.no');
-    await b.waitForFunction("app.state && app.state.phase === 'reveal'", { timeout: 15000 });
+    for (let step = 0; step < 10; step++) {
+      await a.waitForFunction(
+        `app.state.phase === 'play' && app.state.quiz && app.state.quiz.number === ${step + 1}`,
+        { timeout: 15000 }
+      );
+      const statement = await a.evaluate(() => app.state.quiz.statement);
+      const truth = truthOf(statement);
+      check(truth !== null, `${step + 1}. ifadenin doğrusu bulundu`);
+
+      const selector = truth ? '.tf-btn.yes' : '.tf-btn.no';
+      await a.click(selector);
+      await sleep(120);
+      await b.click(selector);
+
+      await a.waitForFunction(
+        `app.state.phase === 'reveal' && app.state.quiz.number === ${step + 1}`,
+        { timeout: 15000 }
+      );
+      await sleep(200);
+      const reveal = await a.evaluate(() => ({
+        points: app.state.quiz.result.points,
+        truth: app.state.quiz.truth,
+        title: document.querySelector('#playBody .verdict h2')?.textContent,
+        boxes: document.querySelectorAll('.quiz-player').length,
+        badge: document.querySelector('.quiz-truth')?.textContent,
+      }));
+      check(reveal.truth === truth, `${step + 1}. doğru cevap gösterildi`);
+      check(reveal.points[0] === 12, `${step + 1}. Ayşe ilk cevap 12 puan`, reveal.points);
+      check(reveal.points[1] === 10, `${step + 1}. Ahmet 10 puan`, reveal.points);
+      check(reveal.title.includes('Doğru'), `${step + 1}. doğru bildi`);
+      check(reveal.boxes === 2, 'İki oyuncunun kararı gösterildi');
+      check(reveal.badge.includes(truth ? 'DOĞRU' : 'YANLIŞ'), 'İfadenin gerçeği gösterildi');
+      ayseTotal += 12;
+      ahmetTotal += 10;
+
+      if (step === 0) {
+        await a.screenshot({ path: path.join(OUT, '28-dogru-yanlis-sonuc.png') });
+      }
+
+      await a.click('[data-action="continueReveal"]');
+      await b.click('[data-action="continueReveal"]');
+    }
+
+    console.log('\nTur sonu');
+    await a.waitForFunction("app.state.phase === 'roundEnd'", { timeout: 15000 });
     await sleep(400);
-    const reveal = await b.evaluate(() => ({
-      points: app.state.question.points,
-      title: document.querySelector('.verdict h2')?.textContent,
-      claimTrue: app.state.question.claim.isTrue,
-      note: document.querySelector('#playBody .hint.center')?.textContent,
-      truth: document.querySelector('.compare-item.truth p')?.textContent,
+    const round = await a.evaluate(() => ({
+      title: document.getElementById('roundTitle')?.textContent,
+      scores: app.state.players.map((p) => [p.name, p.score]),
+      entries: document.querySelectorAll('#roundBody .result-item').length,
+      next: document.querySelector('[data-action="nextRound"]')?.textContent,
     }));
-    check(reveal.points === 10, `Doğru karar 10 puan (${reveal.points})`);
-    check(reveal.claimTrue === isTrue, 'İfadenin gerçeği doğru gösterildi');
-    check(reveal.title.includes('Doğru bildin'), 'Sonuç başlığı doğru', reveal.title);
-    check(reveal.truth === 'Mavi', 'Gerçek cevap gösteriliyor', reveal.truth);
-    check(reveal.note.includes(isTrue ? 'doğruydu' : 'yanlıştı'), 'İfade doğru/yanlış bilgisi var', reveal.note);
-    await b.screenshot({ path: path.join(OUT, '28-dogru-yanlis-sonuc.png') });
+    check(round.title.includes('tur bitti'), 'Tur sonu başlığı doğru', round.title);
+    check(
+      round.scores.find(([name]) => name === 'Ayşe')[1] === ayseTotal &&
+        round.scores.find(([name]) => name === 'Ahmet')[1] === ahmetTotal,
+      `Puanlar doğru (${ayseTotal} - ${ahmetTotal})`,
+      JSON.stringify(round.scores)
+    );
+    check(round.entries === 10, '10 ifade listelendi');
+    check(round.next.includes('Sonraki 10'), 'Sonraki 10 soru butonu var');
+    await a.screenshot({ path: path.join(OUT, '29-dogru-yanlis-tur-sonu.png') });
+
+    console.log('\nFinal');
+    await a.click('[data-action="endGame"]');
+    await a.waitForFunction("app.state.phase === 'final'", { timeout: 15000 });
+    await sleep(400);
+    const final = await a.evaluate(() => ({
+      title: document.querySelector('#finalBody .winner-card h2')?.textContent,
+      entries: document.querySelectorAll('#finalBody .result-item').length,
+      compat: document.querySelectorAll('#finalBody .compat-item').length,
+    }));
+    check(final.title.includes('Ayşe'), 'Finalde kazanan Ayşe', final.title);
+    check(final.entries === 10, 'Tüm ifadeler finalde');
+    check(final.compat === 2, 'Uyum yüzdeleri gösterildi');
+    await a.screenshot({ path: path.join(OUT, '30-dogru-yanlis-final.png') });
 
     console.log('\nHatalar:', errors.length ? errors : 'yok');
     if (errors.length) failures++;
@@ -173,6 +205,7 @@ async function fillStep(page, qtext, answer) {
     console.error('Test hatası:', error.message);
   } finally {
     await browser.close();
+    server.kill();
   }
 
   console.log('\n───────────────────────────────');

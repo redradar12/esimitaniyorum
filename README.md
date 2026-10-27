@@ -4,7 +4,7 @@ Sevgilinle / eşinle **iki ayrı telefondan**, aynı anda oynanan bir "beni ne k
 
 Her oyuncu kendisi hakkında **5 soru ve cevabını** yazar. Sırayla eşinin sorularına cevap verirsin, puanlar hesaplanır, tur biter ve **yeni 5 soruya** geçilir. Soru bulamazsan **10 kategorideki 200+ hazır sorudan** otomatik seçilir.
 
-Üç ayrı oyun modu var: **⌨️ Soru-Cevap**, **🔤 Adam Asmaca**, **✅ Doğru mu Yanlış mı?** Modu oda kurarken seçersin; eşin kodu/QR ile katılınca aynı modda oynarsınız.
+Üç ayrı oyun modu var: **⌨️ Soru-Cevap** (5 soru hazırlanır), **🔤 Adam Asmaca** (sistem kelime verir, sırayla harf seçilir) ve **✅ Doğru mu Yanlış mı?** (sistem ifade sorar, ikiniz de cevaplarsınız). Son iki modda **soru hazırlama yoktur**; modu oda kurarken seçersin, eşin katılınca oyun doğrudan başlar.
 
 Arayüz Türkçe, mobil öncelikli ve koyu romantik temalı. Kurulum gerektirmeyen vanilla JavaScript + Node.js/Socket.IO ile yazıldı.
 
@@ -36,7 +36,7 @@ Varsayılan adres: **http://localhost:4173**
 2. **1. telefon:** uygulamayı aç → takma adını yaz → **Yeni oda kur**.
 3. **2. telefon:** en kolay yol, lobideki **QR kodu** telefon kamerasıyla okutmak. Oda otomatik açılır.
    Alternatif: aynı adresi açıp oda kodunu elle gir.
-4. İkiniz de kendi 5 sorunuzu ve cevabınızı yazın → oyun başlar.
+4. **Soru-Cevap** modunda ikiniz de kendi 5 sorunuzu ve cevabınızı yazın → oyun başlar. **Adam Asmaca** ve **Doğru/Yanlış** modlarında hazırlık yoktur; eşin katılınca oyun otomatik başlar.
 
 ### Bağlantı olmuyorsa
 - Telefonun ve bilgisayarın gerçekten aynı Wi-Fi'de olduğundan emin ol (misafir ağı olmasın).
@@ -50,9 +50,9 @@ Varsayılan adres: **http://localhost:4173**
 
 | Mod | Nasıl oynanır |
 | --- | --- |
-| ⌨️ **Soru-Cevap** | Eşinin cevabını yazarak tahmin edersin. Her soru için 45 saniye. |
-| 🔤 **Adam Asmaca** | Cevaplar 2–16 harf olmalı. Harf seçerek bulursun: 6 can, 60 saniye. 0 yanlış **10**, 1–2 yanlış **8**, 3+ yanlış **6** puan; 6 yanlışta **0**. |
-| ✅ **Doğru mu Yanlış mı?** | Ekranda bir iddia çıkar: “Ayşe’nin cevabı: Mavi”. Doğru/Yanlış dersin. 30 saniye; doğru **10**, yanlış **0** puan. Yanlış iddialar eşinin cevaplarından üretilir. |
+| ⌨️ **Soru-Cevap** | 5 soru hazırlanır. Eşinin cevabını yazarak tahmin edersin. Her soru için 45 saniye. |
+| 🔤 **Adam Asmaca** | Hazırlık yok. Sistem kelime + ipucu verir. **Sırayla** harf seçilir; 6 ortak can. Doğru harf seçene **+5**, kelimeyi bitirene **+10**. 6 yanlışta kelime kaybedilir. |
+| ✅ **Doğru mu Yanlış mı?** | Hazırlık yok. Sistem genel kültür/ilişki ifadesi sorar; **ikiniz de** Doğru/Yanlış dersiniz. 15 saniye; doğru **+10**, ikisi de doğruysa hızlı olan **+2** ekstra. |
 
 ---
 
@@ -61,11 +61,10 @@ Varsayılan adres: **http://localhost:4173**
 | Aşama | Ne oluyor |
 | --- | --- |
 | **Lobi** | Ana sayfada mod seçilir; oda kodu + QR kod oluşur, eşin katılır. |
-| **Soru hazırlığı** | Herkes kendisi hakkında 5 soru ve cevabını yazar. **Karışık** kategori (tüm banka) veya 10 kategoriden biri seçilir. “Tümünü gör” ile 203 soru aranıp seçilebilir; öneriler tekrar etmez. |
-| **Tahmin** | Sorular sırayla gelir: A1, B1, A2, B2… Moda göre cevap yazılır, harf seçilir veya doğru/yanlış kararı verilir. |
-| **Sonuç** | Tahmin/karar ile gerçek cevap yan yana gösterilir, puan eklenir. |
-| **Tur sonu** | 10 soru biter, tur skoru ve tüm cevaplar listelenir. İki taraf da "Sonraki 5 soru" derse yeni tur başlar. |
-| **Final** | "Bitir" ile toplam puanlar, kazanan ve uyum yüzdesi gösterilir. "Yeniden oyna" ile sıfırdan başlanır. |
+| **Soru hazırlığı** | Yalnızca **Soru-Cevap** modunda. Herkes kendisi hakkında 5 soru ve cevabını yazar. **Karışık** kategori veya 10 kategoriden biri seçilir; “Tümünü gör” ile 203 soru aranır. |
+| **Oyun** | Soru-Cevap’ta cevap yazılır; Adam Asmaca’da sırayla harf seçilir; Doğru/Yanlış’ta iki oyuncu da karar verir. |
+| **Tur sonu** | Soru-Cevap’ta 10 soru, Adam Asmaca’da 1 kelime, Doğru/Yanlış’ta 10 ifade biter. Skorlar ve geçmiş gösterilir; iki taraf da devam derse yeni tur başlar. |
+| **Final** | "Bitir" ile toplam puanlar, kazanan ve (quizde) uyum yüzdesi gösterilir. "Yeniden oyna" ile sıfırdan başlanır. |
 
 ### Puanlama
 
@@ -78,8 +77,8 @@ Varsayılan adres: **http://localhost:4173**
 | Kelime eşleşmesi / küçük yazım farkı | **6** |
 | Bilemedi veya süre doldu | **0** |
 
-**Adam Asmaca:** 0 yanlış **10**, 1–2 yanlış **8**, 3+ yanlış **6**; 6 yanlış veya süre doldu **0**.
-**Doğru/Yanlış:** doğru karar **10**, yanlış karar veya süre doldu **0**.
+**Adam Asmaca:** her doğru harf **+5**, kelimeyi bitiren **+10**. 6 yanlışta kelime kaybedilir; o ana kadar kazanılan harf puanları kalır.
+**Doğru/Yanlış:** doğru karar **10**, ikisi de doğruysa ilk cevaplayan **+2**; yanlış veya boş **0**.
 
 Türkçe karakterler ve büyük/küçük harf farkı önemsenmez (`İ`/`i`, `Ş`/`ş` gibi).
 
@@ -90,6 +89,7 @@ Türkçe karakterler ve büyük/küçük harf farkı önemsenmez (`İ`/`i`, `Ş`
 ```
 esimitanıyorum/
 ├─ server.js              # Express + Socket.IO oyun sunucusu (oda, tur, puanlama)
+├─ game-data.js           # Adam Asmaca kelimeleri + doğru/yanlış ifadeleri
 ├─ public/
 │  ├─ index.html          # Ekranlar ve modal
 │  ├─ styles.css          # Mobil öncelikli tema

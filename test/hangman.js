@@ -1,11 +1,11 @@
 'use strict';
 
 /**
- * Adam asmaca akışı testi.
- * Bir turda iki adam asmaca sorusu oynar:
- *  - 1. soru doğru çözülür (2 yanlış → 8 puan)
- *  - 2. soru 6 yanlışla kaybedilir (0 puan)
- * Sonra tur sonunda geçmiş kayıtları kontrol eder.
+ * Adam Asmaca (bağımsız mod) sunucu testi.
+ * - Oda kurulunca soru hazırlığı yok, oyun doğrudan başlar.
+ * - Sırayla harf seçilir, puanlar işlenir.
+ * - Kelime tamamlanınca tur biter; sonraki kelime başlar.
+ * - Ayrı bir odada 6 yanlışla kaybetme denenir.
  *
  *   npm run asmaca
  */
@@ -24,6 +24,7 @@ const check = (ok, label, extra) => {
     console.error('  ✘', label, extra === undefined ? '' : extra);
   }
 };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function makeClient(name) {
   const socket = io(BASE, { transports: ['websocket'], forceNew: true });
@@ -46,11 +47,7 @@ function makeClient(name) {
         resolve,
         timer: setTimeout(() => {
           client.waiters.splice(client.waiters.indexOf(waiter), 1);
-          reject(
-            new Error(
-              `Zaman aşımı: ${label} (son faz: ${client.last && client.last.phase})`
-            )
-          );
+          reject(new Error(`Zaman aşımı: ${label} (faz: ${client.last && client.last.phase})`));
         }, timeout),
       };
       client.waiters.push(waiter);
@@ -64,171 +61,141 @@ function makeClient(name) {
   return client;
 }
 
-const q = (text, answer) => ({ text, answer, category: 'genel' });
+async function makeRoom(ayse, ahmet) {
+  ayse.socket.emit('create_room', { name: 'Ayşe', mode: 'hangman' });
+  const lobby = await ayse.wait((s) => s.phase === 'lobby');
+  ahmet.socket.emit('join_room', { name: 'Ahmet', code: lobby.code });
+  await Promise.all([
+    ayse.wait((s) => s.phase === 'play' && s.hangman),
+    ahmet.wait((s) => s.phase === 'play' && s.hangman),
+  ]);
+  return lobby;
+}
 
 async function main() {
   const server = spawn(process.execPath, ['server.js'], {
-    env: { ...process.env, PORT: String(PORT) },
+    env: { ...process.env, PORT: String(PORT), HANGMAN_WORD: 'Kebap' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let serverLog = '';
   server.stdout.on('data', (d) => (serverLog += d.toString()));
   server.stderr.on('data', (d) => (serverLog += d.toString()));
-  await new Promise((r) => setTimeout(r, 1200));
+  await sleep(1200);
 
   const ayse = makeClient('Ayşe');
   const ahmet = makeClient('Ahmet');
 
   try {
     await Promise.all([ayse.waitConnect(), ahmet.waitConnect()]);
-    console.log('\n1) Oda ve sorular');
-    ayse.socket.emit('create_room', { name: 'Ayşe', mode: 'hangman' });
-    const lobby = await ayse.wait((s) => s.phase === 'lobby');
-    ahmet.socket.emit('join_room', { name: 'Ahmet', code: lobby.code });
-    await Promise.all([
-      ayse.wait((s) => s.phase === 'setup'),
-      ahmet.wait((s) => s.phase === 'setup'),
-    ]);
 
-    ayse.socket.emit('submit_questions', {
-      questions: [
-        q('En sevdiğim renk?', 'Mavi'),
-        q('En sevdiğim yemek?', 'Kebap'),
-        q('En sevdiğim spor?', 'Futbol'),
-        q('Evcil hayvanım?', 'Kedi'),
-        q('Tatilde deniz mi dağ mı?', 'Deniz'),
-      ],
-    });
-    ahmet.socket.emit('submit_questions', {
-      questions: [
-        q('En sevdiğim hayvan?', 'Kedi'),
-        q('En sevdiğim içecek?', 'Çay'),
-        q('En sevdiğim renk?', 'Yeşil'),
-        q('Hangi takım?', 'Basketbol'),
-        q('Tatil yerim?', 'Dağ'),
-      ],
-    });
+    console.log('\n1) Oda doğrudan oyuna başlıyor');
+    const lobby = await makeRoom(ayse, ahmet);
+    check(lobby.mode === 'hangman', 'Oda modu adam asmaca');
+    const start = ahmet.last;
+    check(start.phase === 'play', 'Soru hazırlığı yok, oyun başladı');
+    check(start.hangman.turn === 0, 'İlk sıra ev sahibinde (Ayşe)');
+    check(start.hangman.turnName === 'Ayşe', 'Sıra ismi doğru');
+    check(start.hangman.isMyTurn === false, 'Ahmet sırasının olmadığını görüyor');
+    check(start.hangman.lives === 6, '6 can');
+    check(start.hangman.mask.join('') === '', 'Kelimede hiç harf açık değil');
+    check(start.hangman.length === 5, 'Kelime 5 harf');
+    check(start.hangman.hint === 'Yemek', 'İpucu kategori');
+    check(start.hangman.word === undefined, 'Kelime oyun sırasında gizli');
 
-    const play1 = await ahmet.wait(
-      (s) => s.phase === 'play' && s.question && s.question.number === 1,
-      'ilk soru'
-    );
-    check(play1.question.mode === 'hangman', '1. soru adam asmaca modunda');
-    check(play1.question.hangman.mask.join('') === '', 'Harfler başlangıçta kapalı');
-    check(play1.question.hangman.lives === 6, '6 canla başlıyor');
-    check(play1.guessSeconds === 60, 'Adam asmaca süresi 60 saniye');
-
-    console.log('\n2) İki yanlış harf');
+    console.log('\n2) Sıra kontrolü ve puanlar');
     ahmet.socket.emit('hangman_letter', { letter: 'K' });
+    await sleep(300);
+    check(ahmet.last.hangman.turn === 0, 'Sırası olmayan oyuncu harf seçemiyor');
+
+    ayse.socket.emit('hangman_letter', { letter: 'K' });
     const afterK = await ahmet.wait(
-      (s) => s.phase === 'play' && s.question.hangman.wrong.includes('K'),
+      (s) => s.phase === 'play' && s.hangman.mask.includes('K'),
       'K harfi'
     );
-    check(afterK.question.hangman.lives === 5, 'K yanlış: 5 can kaldı');
-    check(
-      afterK.question.hangman.mask.every((ch) => ch === '' || ch === ' '),
-      'Yanlış harf maskeyi açmıyor'
-    );
+    check(afterK.hangman.turn === 1, 'Doğru harften sonra sıra Ahmet’e geçti');
+    const kScore = afterK.players.find((p) => p.name === 'Ayşe').score;
+    check(kScore === 5, `Doğru harf +5 puan (${kScore})`);
 
-    ahmet.socket.emit('hangman_letter', { letter: 'L' });
+    ahmet.socket.emit('hangman_letter', { letter: 'E' });
+    await sleep(400);
+    check(ahmet.last.players.find((p) => p.name === 'Ahmet').score === 5, 'Ahmet de +5 aldı');
+
+    ayse.socket.emit('hangman_letter', { letter: 'L' });
     const afterL = await ahmet.wait(
-      (s) => s.phase === 'play' && s.question.hangman.wrong.includes('L'),
+      (s) => s.phase === 'play' && s.hangman.wrong.includes('L'),
       'L harfi'
     );
-    check(afterL.question.hangman.lives === 4, 'L yanlış: 4 can kaldı');
-    check(afterL.question.hangman.wrong.join('') === 'KL', 'Yanlış harfler birikiyor');
+    check(afterL.hangman.lives === 5, 'Yanlış harfte can azaldı');
+    check(afterL.hangman.turn === 1, 'Yanlış harften sonra sıra değişti');
 
-    console.log('\n3) Doğru harflerle çözme');
-    ahmet.socket.emit('hangman_letter', { letter: 'M' });
-    const afterM = await ahmet.wait(
-      (s) => s.phase === 'play' && s.question.hangman.mask.includes('M'),
-      'M harfi'
-    );
-    check(afterM.question.hangman.mask[0] === 'M', 'M harfi açıldı');
-
-    ahmet.socket.emit('hangman_letter', { letter: 'A' });
-    ahmet.socket.emit('hangman_letter', { letter: 'V' });
-    await ahmet.wait(
-      (s) => s.phase === 'play' && s.question.hangman.mask.includes('V'),
-      'V harfi'
-    );
-    ahmet.socket.emit('hangman_letter', { letter: 'İ' });
-
-    const reveal1 = await ahmet.wait((s) => s.phase === 'reveal', '1. reveal');
-    check(reveal1.question.hangman.solved === true, 'Kelime çözüldü');
-    check(reveal1.question.match === 'exact', 'Tam isabet olarak işaretlendi');
-    check(reveal1.question.points === 8, '2 yanlış → 8 puan', reveal1.question.points);
-    check(reveal1.question.answer === 'Mavi', 'Doğru cevap gösteriliyor');
-
-    console.log('\n4) İkinci adam asmaca: 6 yanlış');
-    ayse.socket.emit('ready_next');
-    ahmet.socket.emit('ready_next');
-    await ahmet.wait(
-      (s) => s.phase === 'play' && s.question.number === 2,
-      '2. soru'
-    );
-    check(ahmet.last.question.mode === 'hangman', '2. soru da adam asmaca');
-    check(ahmet.last.guessSeconds === 60, '2. sorunun süresi 60 saniye');
-
-    for (const letter of ['Z', 'X', 'Q', 'W', 'J', 'F']) {
-      ayse.socket.emit('hangman_letter', { letter });
+    console.log('\n3) Kelimeyi tamamlama');
+    const moves = [
+      ['Ahmet', 'B'],
+      ['Ayşe', 'A'],
+      ['Ahmet', 'P'],
+    ];
+    for (const [who, letter] of moves) {
+      (who === 'Ayşe' ? ayse : ahmet).socket.emit('hangman_letter', { letter });
+      await sleep(350);
     }
-    const reveal2 = await ayse.wait((s) => s.phase === 'reveal', '2. reveal');
-    check(reveal2.question.hangman.solved === false, '6 yanlışta kelime çözülemedi');
-    check(reveal2.question.hangman.lives === 0, 'Can kalmadı');
-    check(reveal2.question.points === 0, 'Kaybedince 0 puan');
-    check(reveal2.question.answer === 'Kedi', 'Doğru cevap yine gösteriliyor');
+    const solvedState = await ahmet.wait(
+      (s) => s.phase === 'play' && s.hangman.solved,
+      'çözüldü',
+      8000
+    );
+    check(solvedState.hangman.mask.join('') === 'KEBAP', 'Kelime KEBAP olarak açıldı');
+    check(solvedState.hangman.lives === 5, 'Tek yanlış sonrası 5 can kaldı');
 
-    console.log('\n5) Turu tamamlama ve geçmiş');
-    ayse.socket.emit('ready_next');
-    ahmet.socket.emit('ready_next');
+    const roundEnd = await ahmet.wait((s) => s.phase === 'roundEnd', 'kelime sonu');
+    check(roundEnd.hangman.word === 'Kebap', 'Kelime sonuçta gösteriliyor');
+    check(roundEnd.hangman.solved === true, 'Kelime çözüldü');
+    check(roundEnd.hangman.finisher === 1, 'Son harfi Ahmet buldu');
+    const aScore = roundEnd.players.find((p) => p.name === 'Ayşe').score;
+    const bScore = roundEnd.players.find((p) => p.name === 'Ahmet').score;
+    check(aScore === 10, `Ayşe 10 puan (${aScore})`);
+    check(bScore === 25, `Ahmet 25 puan (${bScore})`);
+    check(roundEnd.results.entries.length === 1, 'Kelime geçmişe eklendi');
 
-    const A_ANSWERS = ['Mavi', 'Kebap', 'Futbol', 'Kedi', 'Deniz'];
-    const B_ANSWERS = ['Kedi', 'Çay', 'Yeşil', 'Basketbol', 'Dağ'];
+    console.log('\n4) Sonraki kelime');
+    ayse.socket.emit('next_round');
+    ahmet.socket.emit('next_round');
+    const next = await ayse.wait((s) => s.phase === 'play' && s.round === 2, '2. kelime');
+    check(next.hangman.turn === 1, 'Yeni kelimede ilk sıra Ahmet’te');
+    check(next.hangman.lives === 6, 'Canlar sıfırlandı');
+    check(next.hangman.mask.join('') === '', 'Yeni kelime kapalı');
 
-    for (let step = 2; step < 10; step++) {
-      await ahmet.wait(
-        (s) => s.phase === 'play' && s.question && s.question.number === step + 1,
-        `soru ${step + 1}`
-      );
-      const ownerA = step % 2 === 0;
-      const answer = (ownerA ? A_ANSWERS : B_ANSWERS)[Math.floor(step / 2)];
-      const guesser = ownerA ? ahmet : ayse;
-      const letters = [...new Set(answer.toLocaleUpperCase('tr-TR').split(''))].filter((ch) =>
-        /[A-ZÇĞİÖŞÜ]/.test(ch)
-      );
-      for (const letter of letters) {
-        guesser.socket.emit('hangman_letter', { letter });
-      }
-      await ahmet.wait((s) => s.phase === 'reveal', `reveal ${step + 1}`, 10000);
-      ayse.socket.emit('ready_next');
-      ahmet.socket.emit('ready_next');
+    console.log('\n5) 6 yanlışla kaybetme');
+    const c = makeClient('Deniz');
+    const d = makeClient('Mert');
+    await Promise.all([c.waitConnect(), d.waitConnect()]);
+    await makeRoom(c, d);
+    const wrongs = ['Z', 'X', 'Q', 'W', 'J', 'F'];
+    for (let i = 0; i < wrongs.length; i++) {
+      const client = i % 2 === 0 ? c : d;
+      client.socket.emit('hangman_letter', { letter: wrongs[i] });
+      await sleep(250);
     }
+    const failed = await c.wait((s) => s.phase === 'play' && s.hangman.failed, '6 yanlış');
+    check(failed.hangman.lives === 0, 'Can kalmadı');
+    const failEnd = await c.wait((s) => s.phase === 'roundEnd', 'kayıp sonu');
+    check(failEnd.hangman.solved === false, 'Kelime çözülemedi');
+    check(failEnd.players.every((p) => p.score === 0), 'Yanlışlarda puan yok');
 
-    const roundEnd = await ayse.wait((s) => s.phase === 'roundEnd', 'tur sonu');
-    const entries = roundEnd.results.roundEntries;
-    check(entries.length === 10, 'Turda 10 soru var');
-    check(entries[0].mode === 'hangman' && entries[0].wrongCount === 2, 'Geçmişte 1. soru adam asmaca / 2 yanlış');
-    check(entries[0].points === 8, 'Geçmişte 1. soru 8 puan');
-    check(entries[1].mode === 'hangman' && entries[1].wrongCount === 6, 'Geçmişte 2. soru adam asmaca / 6 yanlış');
-    check(entries[1].points === 0, 'Geçmişte 2. soru 0 puan');
-    check(roundEnd.players.find((p) => p.name === 'Ahmet').score === 48, 'Ahmet 48 puan');
-    check(roundEnd.players.find((p) => p.name === 'Ayşe').score === 40, 'Ayşe 40 puan');
+    c.socket.close();
+    d.socket.close();
   } catch (error) {
     failures++;
     console.error('\nHATA:', error.message);
-  } finally {
+    if (serverLog) console.error(serverLog);
     ayse.socket.close();
     ahmet.socket.close();
+  } finally {
     server.kill();
   }
 
   console.log('\n───────────────────────────────');
-  if (failures === 0) console.log('✅ Tüm adam asmaca testleri geçti');
-  else {
-    console.log(`❌ ${failures} kontrol başarısız`);
-    if (serverLog) console.log('\nSunucu çıktısı:\n' + serverLog);
-  }
+  if (failures === 0) console.log('✅ Tüm bağımsız adam asmaca testleri geçti');
+  else console.log(`❌ ${failures} kontrol başarısız`);
   process.exit(failures === 0 ? 0 : 1);
 }
 

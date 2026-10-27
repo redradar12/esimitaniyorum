@@ -1,14 +1,16 @@
 'use strict';
 
 /**
- * Doğru mu Yanlış mı? modu testi.
- * 10 ifadenin 9'unu doğru, 1'ini yanlış cevaplar; puanları ve geçmişi doğrular.
+ * Doğru mu Yanlış mı? (bağımsız mod) sunucu testi.
+ * - Soru hazırlığı yok; sistem 10 ifade sorar.
+ * - İki oyuncu da cevaplar; doğru +10, ikisi de doğruysa hızlı olan +2.
  *
  *   npm run dogruyanlis
  */
 
 const { spawn } = require('child_process');
 const { io } = require('socket.io-client');
+const { TRUE_FALSE } = require('../game-data');
 
 const PORT = 4003;
 const BASE = `http://localhost:${PORT}`;
@@ -21,13 +23,7 @@ const check = (ok, label, extra) => {
     console.error('  ✘', label, extra === undefined ? '' : extra);
   }
 };
-
-const norm = (value) =>
-  String(value || '')
-    .toLocaleLowerCase('tr-TR')
-    .replace(/[^a-z0-9çğıöşü ]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function makeClient(name) {
   const socket = io(BASE, { transports: ['websocket'], forceNew: true });
@@ -50,11 +46,7 @@ function makeClient(name) {
         resolve,
         timer: setTimeout(() => {
           client.waiters.splice(client.waiters.indexOf(waiter), 1);
-          reject(
-            new Error(
-              `Zaman aşımı: ${label} (son faz: ${client.last && client.last.phase})`
-            )
-          );
+          reject(new Error(`Zaman aşımı: ${label} (faz: ${client.last && client.last.phase})`));
         }, timeout),
       };
       client.waiters.push(waiter);
@@ -68,10 +60,10 @@ function makeClient(name) {
   return client;
 }
 
-const q = (text, answer) => ({ text, answer, category: 'genel' });
-
-const A_ANSWERS = ['Mavi', 'Kebap', 'Futbol', 'Kedi', 'Deniz'];
-const B_ANSWERS = ['Yeşil', 'Çay', 'Basketbol', 'Köpek', 'Dağ'];
+function truthOf(text) {
+  const item = TRUE_FALSE.find((s) => s.text === text);
+  return item ? item.answer : null;
+}
 
 async function main() {
   const server = spawn(process.execPath, ['server.js'], {
@@ -81,89 +73,90 @@ async function main() {
   let serverLog = '';
   server.stdout.on('data', (d) => (serverLog += d.toString()));
   server.stderr.on('data', (d) => (serverLog += d.toString()));
-  await new Promise((r) => setTimeout(r, 1200));
+  await sleep(1200);
 
   const ayse = makeClient('Ayşe');
   const ahmet = makeClient('Ahmet');
 
   try {
     await Promise.all([ayse.waitConnect(), ahmet.waitConnect()]);
-    console.log('\n1) Oda ve sorular');
+    console.log('\n1) Oda doğrudan oyuna başlıyor');
     ayse.socket.emit('create_room', { name: 'Ayşe', mode: 'truefalse' });
     const lobby = await ayse.wait((s) => s.phase === 'lobby');
     check(lobby.mode === 'truefalse', 'Oda modu doğru/yanlış');
     ahmet.socket.emit('join_room', { name: 'Ahmet', code: lobby.code });
-    await Promise.all([
-      ayse.wait((s) => s.phase === 'setup'),
-      ahmet.wait((s) => s.phase === 'setup'),
-    ]);
-    check(ayse.last.mode === 'truefalse', 'Katılan oyuncu da modu görüyor');
-
-    ayse.socket.emit('submit_questions', {
-      questions: [
-        q('En sevdiğim renk?', A_ANSWERS[0]),
-        q('En sevdiğim yemek?', A_ANSWERS[1]),
-        q('En sevdiğim spor?', A_ANSWERS[2]),
-        q('Evcil hayvanım?', A_ANSWERS[3]),
-        q('Tatilde deniz mi dağ mı?', A_ANSWERS[4]),
-      ],
-    });
-    ahmet.socket.emit('submit_questions', {
-      questions: [
-        q('En sevdiğim renk?', B_ANSWERS[0]),
-        q('En sevdiğim içecek?', B_ANSWERS[1]),
-        q('Hangi takım?', B_ANSWERS[2]),
-        q('Hangi hayvan?', B_ANSWERS[3]),
-        q('Tatil yerim?', B_ANSWERS[4]),
-      ],
-    });
+    const start = await ahmet.wait((s) => s.phase === 'play' && s.quiz, 'ilk ifade');
+    check(start.phase === 'play', 'Soru hazırlığı yok, oyun başladı');
+    check(start.quiz.total === 10, '10 ifade');
+    check(start.quiz.number === 1, 'İlk ifade');
+    check(start.quiz.statement.length > 5, 'İfade gösteriliyor');
+    check(start.guessSeconds === 15, '15 saniye');
+    check(start.quiz.truth === undefined, 'Cevap oyun sırasında gizli');
 
     console.log('\n2) 10 ifade');
-    let expected = { Ayşe: 0, Ahmet: 0 };
+    const expected = { Ayşe: 0, Ahmet: 0 };
+    const correctCount = { Ayşe: 0, Ahmet: 0 };
 
     for (let step = 0; step < 10; step++) {
       const state = await ahmet.wait(
-        (s) => s.phase === 'play' && s.question && s.question.number === step + 1,
+        (s) => s.phase === 'play' && s.quiz && s.quiz.number === step + 1,
         `ifade ${step + 1}`
       );
-      const ownerA = step % 2 === 0;
-      const qIndex = Math.floor(step / 2);
-      const truth = (ownerA ? A_ANSWERS : B_ANSWERS)[qIndex];
-      const shown = state.question.claim && state.question.claim.shown;
-      check(Boolean(shown), `${step + 1}. ifade gösteriliyor`, shown);
-      check(
-        state.question.claim.isTrue === undefined,
-        `${step + 1}. ifadede cevap sızdırılmıyor`
-      );
+      const truth = truthOf(state.quiz.statement);
+      check(truth !== null, `${step + 1}. ifadenin doğrusu bankada bulundu`);
+      check(state.quiz.truth === undefined, `${step + 1}. cevap sızdırılmıyor`);
 
-      const isTrue = norm(shown) === norm(truth);
-      const decideCorrect = step !== 2; // 3. ifadeyi bilerek yanlış cevapla
-      const value = decideCorrect ? isTrue : !isTrue;
-      const guesser = ownerA ? ahmet : ayse;
-      guesser.socket.emit('truefalse_answer', { value });
+      // 2. ifade: Ahmet yanlış, Ayşe doğru
+      // 4. ifade: Ayşe yanlış, Ahmet doğru
+      // Diğerleri: ikisi de doğru; sırayla ilk cevaplayan değişir
+      let first = step % 2 === 0 ? ahmet : ayse;
+      let second = first === ahmet ? ayse : ahmet;
+      let firstValue = truth;
+      let secondValue = truth;
+      if (step === 1) {
+        first = ahmet;
+        second = ayse;
+        firstValue = !truth;
+        secondValue = truth;
+      } else if (step === 3) {
+        first = ayse;
+        second = ahmet;
+        firstValue = !truth;
+        secondValue = truth;
+      }
 
-      const reveal = await guesser.wait(
-        (s) =>
-          s.phase === 'reveal' &&
-          s.question &&
-          s.question.number === step + 1,
+      first.socket.emit('quiz_answer', { value: firstValue });
+      await sleep(120);
+      second.socket.emit('quiz_answer', { value: secondValue });
+
+      const reveal = await ahmet.wait(
+        (s) => s.phase === 'reveal' && s.quiz && s.quiz.number === step + 1,
         `reveal ${step + 1}`
       );
-      const expectedPoints = decideCorrect ? 10 : 0;
+      const result = reveal.quiz.result;
+      check(reveal.quiz.truth === truth, `${step + 1}. doğru cevap açıklandı`);
+
+      const firstIndex = reveal.players.findIndex((p) => p.name === first.name);
+      const secondIndex = reveal.players.findIndex((p) => p.name === second.name);
+      const bothCorrect = firstValue === truth && secondValue === truth;
+      const expectedFirst = firstValue === truth ? 10 + (bothCorrect ? 2 : 0) : 0;
+      const expectedSecond = secondValue === truth ? 10 : 0;
+
       check(
-        reveal.question.points === expectedPoints,
-        `${step + 1}. ifade ${decideCorrect ? 'doğru' : 'yanlış'} cevap → ${reveal.question.points} puan`,
-        `beklenen ${expectedPoints}`
+        result.points[firstIndex] === expectedFirst,
+        `${step + 1}. ilk cevap ${expectedFirst} puan`,
+        result.points
       );
       check(
-        reveal.question.claim.isTrue === isTrue,
-        `${step + 1}. ifadenin gerçeği doğru bildirildi`
+        result.points[secondIndex] === expectedSecond,
+        `${step + 1}. ikinci cevap ${expectedSecond} puan`,
+        result.points
       );
-      check(
-        reveal.question.guess === (value ? 'Doğru' : 'Yanlış'),
-        `${step + 1}. karar kaydedildi`
-      );
-      expected[ownerA ? 'Ahmet' : 'Ayşe'] += expectedPoints;
+
+      if (firstValue === truth) correctCount[first.name] += 1;
+      if (secondValue === truth) correctCount[second.name] += 1;
+      expected[first.name] += expectedFirst;
+      expected[second.name] += expectedSecond;
 
       ayse.socket.emit('ready_next');
       ahmet.socket.emit('ready_next');
@@ -171,25 +164,30 @@ async function main() {
 
     console.log('\n3) Tur sonu ve geçmiş');
     const roundEnd = await ayse.wait((s) => s.phase === 'roundEnd', 'tur sonu');
-    const entries = roundEnd.results.roundEntries;
-    check(entries.length === 10, 'Turda 10 ifade var');
-    check(
-      entries.every((e) => e.mode === 'truefalse'),
-      'Tüm geçmiş kayıtları doğru/yanlış modunda'
-    );
-    check(
-      entries.every((e) => typeof e.claimShown === 'string' && e.claimShown.length > 0),
-      'Geçmişte ifadeler saklanıyor'
-    );
-    check(typeof entries[0].claimTrue === 'boolean', 'Geçmişte doğru/yanlış bilgisi var');
-
     const ayseScore = roundEnd.players.find((p) => p.name === 'Ayşe').score;
     const ahmetScore = roundEnd.players.find((p) => p.name === 'Ahmet').score;
-    check(ayseScore === 50, `Ayşe 50 puan (${ayseScore})`);
-    check(ahmetScore === 40, `Ahmet 40 puan (${ahmetScore})`);
+    check(ayseScore === expected.Ayşe, `Ayşe ${expected.Ayşe} puan (${ayseScore})`);
+    check(ahmetScore === expected.Ahmet, `Ahmet ${expected.Ahmet} puan (${ahmetScore})`);
+    check(roundEnd.results.roundEntries.length === 10, '10 ifade geçmişte');
+    check(
+      roundEnd.results.roundEntries.every((e) => typeof e.truth === 'boolean'),
+      'Geçmişte doğru/yanlış bilgisi var'
+    );
+    check(
+      roundEnd.results.players.find((p) => p.name === 'Ayşe').correct === correctCount.Ayşe,
+      'Ayşe doğru sayısı tutuyor'
+    );
+
+    console.log('\n4) Final');
+    ayse.socket.emit('end_game');
+    const final = await ahmet.wait((s) => s.phase === 'final', 'final');
+    const winner = final.results.winners[0];
+    const higher = expected.Ayşe >= expected.Ahmet ? 'Ayşe' : 'Ahmet';
+    check(winner === higher, `Kazanan ${higher}`, winner);
   } catch (error) {
     failures++;
     console.error('\nHATA:', error.message);
+    if (serverLog) console.error(serverLog);
   } finally {
     ayse.socket.close();
     ahmet.socket.close();
@@ -197,11 +195,8 @@ async function main() {
   }
 
   console.log('\n───────────────────────────────');
-  if (failures === 0) console.log('✅ Tüm doğru/yanlış testleri geçti');
-  else {
-    console.log(`❌ ${failures} kontrol başarısız`);
-    if (serverLog) console.log('\nSunucu çıktısı:\n' + serverLog);
-  }
+  if (failures === 0) console.log('✅ Tüm bağımsız doğru/yanlış testleri geçti');
+  else console.log(`❌ ${failures} kontrol başarısız`);
   process.exit(failures === 0 ? 0 : 1);
 }
 

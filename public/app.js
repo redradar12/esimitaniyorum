@@ -36,12 +36,12 @@ const MODES = {
   hangman: {
     emoji: '🔤',
     label: 'Adam Asmaca',
-    desc: 'Harf harf tahmin et. 6 can, 60 saniye.',
+    desc: 'Sistem kelime verir; sırayla harf seçin. 6 ortak can.',
   },
   truefalse: {
     emoji: '✅',
     label: 'Doğru mu Yanlış mı?',
-    desc: 'İfadenin doğru mu yanlış mı olduğuna karar ver.',
+    desc: 'Sistem ifade sorar; ikiniz de doğru/yanlış diyin.',
   },
 };
 
@@ -288,13 +288,17 @@ function route() {
   const s = app.state;
   if (!s) return;
 
-  if (!['play', 'setup'].includes(s.phase)) {
+  if (s.mode !== 'text' || !['play', 'setup'].includes(s.phase)) {
     $('transition').hidden = true;
   }
 
   if (s.phase === 'lobby') {
     showScreen('lobby');
     renderLobby();
+  } else if (s.mode === 'hangman') {
+    routeHangman(s);
+  } else if (s.mode === 'truefalse') {
+    routeQuiz(s);
   } else if (s.phase === 'setup') {
     showScreen('setup');
     renderSetup();
@@ -320,6 +324,368 @@ function route() {
   if (paused) {
     $('pausedText').textContent = `${rival.name} bağlantısı bekleniyor…`;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Bağımsız modlar: Adam Asmaca                                       */
+/* ------------------------------------------------------------------ */
+
+function routeHangman(s) {
+  if (!s.hangman) return;
+  if (s.phase === 'final') {
+    showScreen('final');
+    renderStandaloneFinal(s);
+    return;
+  }
+  if (s.phase === 'roundEnd') {
+    showScreen('roundEnd');
+    renderHangmanRoundEnd(s);
+    return;
+  }
+  showScreen('play');
+  renderHangmanPlay(s);
+}
+
+function hangmanMaskHtml(mask) {
+  return `<div class="hm-board">${mask
+    .map((ch) => {
+      if (ch === ' ') return '<span class="hm-gap"></span>';
+      return `<span class="hm-cell ${ch ? 'open' : ''}">${ch ? esc(ch) : ''}</span>`;
+    })
+    .join('')}</div>`;
+}
+
+function hangmanKeyboardHtml(h, enabled) {
+  const used = new Set([
+    ...h.mask.filter((ch) => ch && ch !== ' '),
+    ...h.wrong,
+  ]);
+  return `<div class="hm-keyboard">${HANGMAN_ALPHABET.map((letter) => {
+    const isUsed = used.has(letter);
+    return `<button type="button" class="hm-key ${isUsed ? 'used' : ''}"
+      data-action="hangmanLetter" data-letter="${letter}"
+      ${!enabled || isUsed ? 'disabled' : ''}>${letter}</button>`;
+  }).join('')}</div>`;
+}
+
+function renderHangmanPlay(s) {
+  const h = s.hangman;
+  $('playTitle').textContent = 'Adam Asmaca';
+  $('playCounter').textContent = `Kelime ${s.round}`;
+
+  const banner = h.solved
+    ? `<div class="turn-banner go">🎉 <b>Kelime tamamlandı!</b> Sonuçlar geliyor…</div>`
+    : h.failed
+      ? `<div class="turn-banner wait">💔 <b>6 yanlış!</b> Kelimeyi bilemediniz.</div>`
+      : h.isMyTurn
+        ? `<div class="turn-banner go">🎯 <b>Sıra sende!</b> Bir harf seç.</div>`
+        : `<div class="turn-banner wait">⏳ <b>Sıra ${esc(h.turnName)}'de.</b> Harf seçmesini bekle.</div>`;
+
+  const wrong = h.wrong.length
+    ? `<div class="hm-wrong">Yanlış harfler: ${h.wrong.map((l) => esc(l)).join(' ')}</div>`
+    : '';
+
+  $('playBody').innerHTML = `
+    ${scorebarHtml(s)}
+    ${banner}
+    <div class="card question-card">
+      <div class="q-owner">🔤 ${esc(h.hint)} · ${h.length} harf</div>
+      ${hangmanMaskHtml(h.mask)}
+      <div class="hm-lives">${hangmanHearts(h.lives)}<span>${h.lives} can</span></div>
+      ${wrong}
+    </div>
+    <div class="card guess-box">
+      <div class="guess-label">${
+        h.isMyTurn && !h.solved && !h.failed ? 'Bir harf seç' : 'Klavye'
+      }</div>
+      ${hangmanKeyboardHtml(h, h.isMyTurn && !h.solved && !h.failed)}
+    </div>
+  `;
+}
+
+function renderHangmanRoundEnd(s) {
+  const h = s.hangman;
+  const r = s.results;
+  $('roundTitle').textContent = `Kelime ${s.round}`;
+
+  const playersWithRound = r.players.map((p, i) => ({
+    ...p,
+    round: s.players[i] ? s.players[i].roundScore : 0,
+  }));
+  const finisher =
+    h.finisher != null && s.players[h.finisher] ? s.players[h.finisher].name : '';
+
+  const readyBtn = s.readyNext
+    ? `<button class="btn btn-primary" disabled>Eşin bekleniyor…</button>`
+    : `<button class="btn btn-primary" data-action="nextRound">Sonraki kelime →</button>`;
+
+  $('roundBody').innerHTML = `
+    <div class="card winner-card">
+      <span class="trophy">${h.solved ? '🎉' : '💔'}</span>
+      <h2>${h.solved ? 'Kelime tamamlandı!' : 'Kelimeyi bilemediniz'}</h2>
+      <p class="word-reveal">${esc(h.word || '')}</p>
+      <p class="hint">${
+        h.solved
+          ? `${esc(finisher)} son harfi buldu.`
+          : '6 yanlış hakkı doldu.'
+      }</p>
+    </div>
+
+    ${scoreCardsHtml({ players: playersWithRound }, true)}
+
+    <div class="btn-row">
+      ${readyBtn}
+      <button class="btn btn-ghost" data-action="endGame">Bitir</button>
+    </div>
+    <p class="ready-note">${
+      s.readyNext
+        ? 'Sen hazırsın. Eşin de basınca yeni kelime gelecek.'
+        : s.otherReadyNext
+          ? 'Eşin hazır! Sen de “Sonraki kelime”ye bas.'
+          : 'Yeni kelime için ikiniz de “Sonraki kelime”ye basın.'
+    }</p>
+
+    <div class="section-title">Kelimeler</div>
+    ${hangmanEntriesHtml(r.entries, s.players)}
+  `;
+}
+
+function hangmanEntriesHtml(entries, players) {
+  if (!entries.length) return '<p class="hint">Henüz kelime yok.</p>';
+  return `<div class="result-list">
+    ${entries
+      .map((e) => {
+        const awards = players
+          .map((p, i) => `${p.isMe ? 'Sen' : esc(p.name)} +${(e.awards && e.awards[i]) || 0}`)
+          .join(' · ');
+        return `<div class="result-item">
+          <div class="mark ${e.solved ? 'ok' : 'no'}">${e.solved ? '✅' : '✖'}</div>
+          <div class="ri-body">
+            <div class="ri-q"><span class="ri-no">${esc(e.round)}.</span> ${esc(e.word)}</div>
+            <div class="ri-a">${e.solved ? 'Tamamlandı' : '6 yanlış'} · ${awards}</div>
+          </div>
+        </div>`;
+      })
+      .join('')}
+  </div>`;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Bağımsız modlar: Doğru mu Yanlış mı?                               */
+/* ------------------------------------------------------------------ */
+
+function routeQuiz(s) {
+  if (!s.quiz) return;
+  if (s.phase === 'final') {
+    showScreen('final');
+    renderStandaloneFinal(s);
+    return;
+  }
+  if (s.phase === 'roundEnd') {
+    showScreen('roundEnd');
+    renderQuizRoundEnd(s);
+    return;
+  }
+  if (s.phase === 'reveal') {
+    showScreen('play');
+    renderQuizReveal(s);
+    return;
+  }
+  showScreen('play');
+  renderQuizPlay(s);
+}
+
+function renderQuizPlay(s) {
+  const q = s.quiz;
+  const answered = q.myAnswer !== null;
+
+  $('playTitle').textContent = 'Doğru mu Yanlış mı?';
+  $('playCounter').textContent = `${q.number}/${q.total}`;
+
+  $('playBody').innerHTML = `
+    ${scorebarHtml(s)}
+    <div class="timer-wrap">
+      <div class="timer"><div class="timer-fill" id="timerFill"></div></div>
+      <span class="timer-text" id="timerText">${s.guessSeconds} sn</span>
+    </div>
+    <div class="card question-card quiz-card">
+      <div class="q-owner">🧠 ${esc(q.category)}</div>
+      <h2 class="question-text">${esc(q.statement)}</h2>
+      <p class="q-sub">${
+        answered ? 'Cevabın kaydedildi.' : 'Bu ifade doğru mu, yanlış mı?'
+      }</p>
+    </div>
+    <div class="card guess-box">
+      <div class="tf-row">
+        <button type="button" class="tf-btn yes" data-action="quizAnswer" data-value="true" ${
+          answered ? 'disabled' : ''
+        }>✅ Doğru</button>
+        <button type="button" class="tf-btn no" data-action="quizAnswer" data-value="false" ${
+          answered ? 'disabled' : ''
+        }>❌ Yanlış</button>
+      </div>
+      <p class="hint center" style="margin:0">${
+        answered
+          ? `“${q.myAnswer ? 'Doğru' : 'Yanlış'}” dedin. ${
+              q.otherAnswered ? 'Eşin de cevapladı, sonuç geliyor…' : 'Eşin bekleniyor…'
+            }`
+          : 'İkiniz de cevaplayınca sonuç açıklanacak.'
+      }</p>
+    </div>
+  `;
+  updateTimer();
+}
+
+function renderQuizReveal(s) {
+  const q = s.quiz;
+  const res = q.result || { answers: [null, null], points: [0, 0], truth: q.truth };
+  const me = s.me.index;
+  const myCorrect = res.answers[me] === res.truth;
+  const myPoints = res.points[me] || 0;
+
+  $('playTitle').textContent = 'Doğru mu Yanlış mı?';
+  $('playCounter').textContent = `${q.number}/${q.total}`;
+
+  const readyNote = s.readyNext
+    ? `${esc(s.rivalName || 'Eşin')} de basınca devam edilecek…`
+    : `${q.number}. ifade tamam. İkiniz de Devam’a basınca ${
+        q.number >= q.total ? 'tur sonuçları gelecek' : `${q.number + 1}. ifadeye geçilecek`
+      }.`;
+
+  const playerBoxes = s.players
+    .map((p, i) => {
+      const value = res.answers[i];
+      const correct = value === res.truth;
+      return `<div class="quiz-player ${correct ? 'ok' : 'no'}">
+        <span>${p.isMe ? 'Sen' : esc(p.name)}</span>
+        <b>${value === null ? '—' : value ? 'Doğru' : 'Yanlış'}</b>
+        <em>${correct ? '+' + (res.points[i] || 0) : '0'} puan</em>
+      </div>`;
+    })
+    .join('');
+
+  $('playBody').innerHTML = `
+    ${scorebarHtml(s)}
+    <div class="card question-card">
+      <div class="verdict">
+        <span class="verdict-emoji">${myCorrect ? '🎯' : '💔'}</span>
+        <h2>${myCorrect ? 'Doğru bildin!' : 'Yanlış!'}</h2>
+        <span class="points ${myPoints > 0 ? '' : 'zero'}">${
+          myPoints > 0 ? `+${myPoints} puan` : '0 puan'
+        }</span>
+      </div>
+      <p class="q-sub" style="margin-top:14px">${esc(q.statement)}</p>
+      <div class="quiz-truth">${res.truth ? 'İfade DOĞRU ✅' : 'İfade YANLIŞ ❌'}</div>
+      <div class="quiz-players">${playerBoxes}</div>
+    </div>
+    <button class="btn btn-primary btn-block" data-action="continueReveal" ${
+      s.readyNext ? 'disabled' : ''
+    }>${s.readyNext ? 'Eşin bekleniyor…' : 'Devam →'}</button>
+    <p class="ready-note">${readyNote}</p>
+  `;
+}
+
+function renderQuizRoundEnd(s) {
+  const r = s.results;
+  $('roundTitle').textContent = `${s.round}. tur bitti`;
+
+  const playersWithRound = r.players.map((p, i) => ({
+    ...p,
+    round: s.players[i] ? s.players[i].roundScore : 0,
+  }));
+  const readyBtn = s.readyNext
+    ? `<button class="btn btn-primary" disabled>Eşin bekleniyor…</button>`
+    : `<button class="btn btn-primary" data-action="nextRound">Sonraki 10 soru →</button>`;
+
+  $('roundBody').innerHTML = `
+    <div class="card" style="text-align:center;padding:20px">
+      <div style="font-size:2.2rem">🎉</div>
+      <h2 style="margin:0;font-size:1.3rem">10 ifade tamam!</h2>
+      <p class="hint" style="margin-top:6px">İşte turun sonuçları.</p>
+    </div>
+
+    ${scoreCardsHtml({ players: playersWithRound }, true)}
+
+    <div class="btn-row">
+      ${readyBtn}
+      <button class="btn btn-ghost" data-action="endGame">Bitir</button>
+    </div>
+    <p class="ready-note">${
+      s.readyNext
+        ? 'Sen hazırsın. Eşin de basınca yeni ifadeler gelecek.'
+        : s.otherReadyNext
+          ? 'Eşin hazır! Sen de “Sonraki 10 soru”ya bas.'
+          : 'Yeni ifadeler için ikiniz de “Sonraki 10 soru”ya basın.'
+    }</p>
+
+    <div class="section-title">Bu turun ifadeleri</div>
+    ${quizEntriesHtml(r.roundEntries, s.players)}
+  `;
+}
+
+function quizEntriesHtml(entries, players) {
+  if (!entries.length) return '<p class="hint">Henüz ifade yok.</p>';
+  return `<div class="result-list">
+    ${entries
+      .map((e) => {
+        const parts = players
+          .map((p, i) => {
+            const value = e.answers[i];
+            return `${p.isMe ? 'Sen' : esc(p.name)}: ${
+              value === null ? '—' : value ? 'Doğru' : 'Yanlış'
+            } (+${(e.points && e.points[i]) || 0})`;
+          })
+          .join(' · ');
+        return `<div class="result-item">
+          <div class="mark ${e.truth ? 'ok' : 'no'}">${e.truth ? '✅' : '❌'}</div>
+          <div class="ri-body">
+            <div class="ri-q"><span class="ri-no">${esc(e.index)}.</span> ${esc(e.statement)}</div>
+            <div class="ri-a">Tur ${esc(e.round)} · ${parts}</div>
+          </div>
+        </div>`;
+      })
+      .join('')}
+  </div>`;
+}
+
+function renderStandaloneFinal(s) {
+  const r = s.results;
+  const winner = r.tie || !r.winners.length ? null : r.winners[0];
+  const isQuiz = s.mode === 'truefalse';
+  const headline = winner ? `${winner} kazandı!` : 'Berabere!';
+  const subline = winner ? 'Rövanş var mı?' : 'İkiniz de aynı puandasınız.';
+
+  $('finalBody').innerHTML = `
+    <div class="card winner-card">
+      <span class="trophy">${winner ? '🏆' : '🤝'}</span>
+      <h2>${esc(headline)}</h2>
+      <p>${esc(subline)}</p>
+      ${
+        isQuiz
+          ? `<div class="compat">${r.players
+              .map(
+                (p) => `<div class="compat-item">
+                  <div class="pct">%${p.percent}</div>
+                  <div class="lbl">${esc(p.name)} · ${p.correct}/${p.total} doğru</div>
+                </div>`
+              )
+              .join('')}</div>`
+          : ''
+      }
+    </div>
+
+    ${scoreCardsHtml(r, false)}
+
+    <div class="section-title">${isQuiz ? 'Tüm ifadeler' : 'Kelimeler'}</div>
+    ${isQuiz ? quizEntriesHtml(r.entries, s.players) : hangmanEntriesHtml(r.entries, s.players)}
+
+    <div class="btn-row" style="margin-top:20px">
+      <button class="btn btn-primary" data-action="playAgain" ${
+        s.readyNext ? 'disabled' : ''
+      }>${s.readyNext ? 'Eşin bekleniyor…' : 'Yeniden oyna'}</button>
+      <button class="btn btn-ghost" data-action="leave">Ana sayfa</button>
+    </div>
+  `;
 }
 
 /* ------------------------------------------------------------------ */
@@ -358,6 +724,10 @@ function renderLobby() {
 
   $('qrImg').src = `/qr.svg?oda=${encodeURIComponent(s.code)}`;
   $('shareBtn').textContent = navigator.share ? 'Paylaş' : 'WhatsApp';
+  $('lobbyFoot').textContent =
+    s.mode === 'text'
+      ? 'İkiniz de hazır olduğunuzda sorular başlıyor.'
+      : 'Eşin katılınca oyun otomatik başlıyor.';
 }
 
 /* ------------------------------------------------------------------ */
@@ -1057,20 +1427,33 @@ function updateTypingIndicator() {
 
 function updateTimer() {
   const s = app.state;
-  if (!s || s.phase !== 'play' || !s.question) return;
+  if (!s || s.phase !== 'play') return;
+
+  let deadline = 0;
+  if (s.mode === 'text' && s.question) {
+    deadline = s.question.deadline;
+  } else if (s.mode === 'truefalse' && s.quiz) {
+    deadline = s.quiz.deadline;
+  } else {
+    return;
+  }
+
   const fill = $('timerFill');
   const text = $('timerText');
   if (!fill || !text) return;
 
   const now = Date.now() + app.skew;
   const total = (s.guessSeconds || 45) * 1000;
-  const left = Math.max(0, s.question.deadline - now);
+  const left = Math.max(0, deadline - now);
   const ratio = Math.max(0, Math.min(1, left / total));
   fill.style.width = (ratio * 100).toFixed(1) + '%';
   fill.classList.toggle('low', ratio < 0.3);
   text.textContent = Math.ceil(left / 1000) + ' sn';
 
-  if (left <= 0 && !s.question.paused) {
+  const paused =
+    (s.question && s.question.paused) || (s.quiz && s.quiz.paused) || false;
+
+  if (left <= 0 && !paused) {
     const btn = $('guessBtn');
     if (btn && !btn.disabled) {
       btn.disabled = true;
@@ -1079,6 +1462,9 @@ function updateTimer() {
     const input = $('guessInput');
     if (input) input.disabled = true;
     document.querySelectorAll('.hm-key').forEach((key) => {
+      key.disabled = true;
+    });
+    document.querySelectorAll('.tf-btn').forEach((key) => {
       key.disabled = true;
     });
   }
@@ -1436,16 +1822,23 @@ document.addEventListener('click', (event) => {
       break;
     }
     case 'hangmanLetter': {
-      if (!app.state || app.state.phase !== 'play') break;
+      if (
+        !app.state ||
+        app.state.mode !== 'hangman' ||
+        !app.state.hangman ||
+        !app.state.hangman.isMyTurn
+      ) {
+        break;
+      }
       const letter = btn.dataset.letter;
       if (!letter) break;
       btn.disabled = true;
       socket.emit('hangman_letter', { letter });
       break;
     }
-    case 'trueFalse': {
-      if (!app.state || app.state.phase !== 'play') break;
-      socket.emit('truefalse_answer', { value: btn.dataset.value === 'true' });
+    case 'quizAnswer': {
+      if (!app.state || app.state.mode !== 'truefalse' || app.state.phase !== 'play') break;
+      socket.emit('quiz_answer', { value: btn.dataset.value === 'true' });
       document.querySelectorAll('.tf-btn').forEach((b) => (b.disabled = true));
       break;
     }
