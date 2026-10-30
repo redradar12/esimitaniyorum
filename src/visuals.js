@@ -77,7 +77,7 @@ function animateScreen(name, first = false, previousScreen = null) {
   }
 
   if (!celebrating) {
-    const targetOpacity = name === 'home' ? 0.82 : name === 'final' ? 0.12 : 0;
+    const targetOpacity = name === 'home' ? 0.74 : name === 'final' ? 0.12 : 0;
     if (reduceMotion) {
       gsap.set(canvas, { opacity: targetOpacity });
     } else {
@@ -123,7 +123,7 @@ let targetPointer = { x: 0, y: 0 };
 let pointer = { x: 0, y: 0 };
 let scrollOffset = 0;
 
-const palette = [0xff5f8f, 0xff8f86, 0xffb07c, 0xffd166, 0x9b7bff, 0x63e2c0];
+const palette = [0xff5f8f, 0xff8f86, 0xffb07c, 0xff9fc3, 0x9b7bff, 0x63e2c0];
 
 function supportsWebGL() {
   try {
@@ -197,7 +197,7 @@ function createHeart(color, scale, burst = false) {
     const innerMaterial = new THREE.MeshStandardMaterial({
       color,
       emissive: color,
-      emissiveIntensity: 0.42,
+      emissiveIntensity: 0.6,
       metalness: 0.18,
       roughness: 0.28,
     });
@@ -282,7 +282,7 @@ function buildHearts() {
 
   for (let i = 0; i < count; i++) {
     const color = palette[i % palette.length];
-    const scale = rand(0.11, desktop ? 0.25 : 0.19);
+    const scale = rand(0.11, desktop ? 0.25 : 0.17);
     const heart = createHeart(color, scale);
     const side = i % 2 === 0 ? -1 : 1;
     const baseZ = rand(-4.6, -1.1);
@@ -543,7 +543,7 @@ function celebrate() {
     if (bgGroup) bgGroup.visible = true;
     canvas.classList.remove('is-celebrating');
     gsap.to(canvas, {
-      opacity: currentScreen === 'home' ? 0.82 : currentScreen === 'final' ? 0.12 : 0,
+      opacity: currentScreen === 'home' ? 0.74 : currentScreen === 'final' ? 0.12 : 0,
       duration: 0.7,
     });
   }, 3200);
