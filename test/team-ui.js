@@ -236,6 +236,13 @@ async function answer(page, value) {
     await rivalB.click('#teamAnswer');
     await rivalB.type('#teamAnswer', 'den');
     await answer(host, 'okulda');
+    await host.waitForFunction(
+      "app.state.teamQuestion && app.state.teamQuestion.myAnswer !== null",
+      { timeout: 12000 }
+    );
+    await host.waitForFunction("!document.getElementById('teamAnswer')", {
+      timeout: 12000,
+    });
     await partner.waitForFunction(
       "app.state.teamQuestion && app.state.teamQuestion.partnerAnswered === true",
       { timeout: 12000 }

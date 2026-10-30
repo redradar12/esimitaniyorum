@@ -8,7 +8,7 @@ Dört oyun modu var: **⌨️ Soru-Cevap** (5 soru hazırlanır), **🔤 Adam As
 
 **Çiftler Kapışması:** **2 çift (4 kişi)** veya **3 çift (6 kişi)** aynı odaya katılır. Her çift kendi iki telefonundan oynar; sistem ortak geçmiş soruları sorar, eşler aynı cevabı verirse çift **+10 puan** kazanır. Çiftler birbirine karşı yarışır.
 
-Arayüz Türkçe, mobil öncelikli ve koyu romantik temalı. Kurulum gerektirmeyen vanilla JavaScript + Node.js/Socket.IO ile yazıldı.
+Arayüz Türkçe, mobil öncelikli ve koyu romantik temalı. Kurulum gerektirmeyen vanilla JavaScript + Node.js/Socket.IO ile yazıldı. 2026 görsel katmanında **Three.js** ile hafif 3D kalpler, **GSAP** ile ekran geçişleri ve mikro animasyonlar, cam efektli kartlar ve Fraunces/Manrope tipografisi kullanılır.
 
 ---
 
@@ -113,9 +113,12 @@ esimitanıyorum/
 │  ├─ index.html          # Ekranlar ve modal
 │  ├─ styles.css          # Mobil öncelikli tema
 │  ├─ app.js              # İstemci mantığı ve ekran çizimi
+│  ├─ visuals.bundle.js   # 3D + animasyon paketi (esbuild çıktısı)
 │  ├─ questions.js        # 10 kategori, 203 hazır soru
 │  ├─ manifest.webmanifest
 │  └─ icon.svg
+├─ src/
+│  └─ visuals.js          # Three.js/GSAP görsel katmanı (kaynak)
 ├─ test/
 │  ├─ flow.js             # Uçtan uca sunucu testi (iki sahte oyuncu)
 │  └─ visual.js           # Chrome ile mobil ekran görüntüsü testi
@@ -154,6 +157,16 @@ npm run ses-ui       # Sahte mikrofonla gerçek WebRTC bağlantısı + mute/ayr�
 ```bash
 set CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
 ```
+
+### Görsel katmanı yeniden derleme
+
+3D/animasyon kaynağı `src/visuals.js` içindedir; tarayıcıya giden sürüm `public/visuals.bundle.js` olarak derlenir. Kaynakta değişiklik yaptıysan:
+
+```bash
+npm run build:ui
+```
+
+Bu komut Three.js ve GSAP'i tek, küçültülmüş bir dosyada birleştirir. Oyun mantığı, socket/WebRTC, puanlama ve soru akışı bu katmandan etkilenmez.
 
 ---
 

@@ -471,6 +471,7 @@ function showScreen(name) {
     section.classList.toggle('active', section.id === 'screen-' + name);
   });
   window.scrollTo({ top: 0, behavior: 'auto' });
+  document.dispatchEvent(new CustomEvent('screenchange', { detail: { name } }));
 }
 
 function goHome() {
@@ -978,10 +979,7 @@ function renderQuizPlay(s) {
 
   $('playBody').innerHTML = `
     ${scorebarHtml(s)}
-    <div class="timer-wrap">
-      <div class="timer"><div class="timer-fill" id="timerFill"></div></div>
-      <span class="timer-text" id="timerText">${s.guessSeconds} sn</span>
-    </div>
+    ${timerHtml(s.guessSeconds)}
     <div class="card question-card quiz-card">
       <div class="q-owner">🧠 ${esc(q.category)}</div>
       <h2 class="question-text">${esc(q.statement)}</h2>
@@ -1394,10 +1392,7 @@ function renderTeamPlay(s) {
 
   $('playBody').innerHTML = `
     ${teamScoresHtml(s)}
-    <div class="timer-wrap">
-      <div class="timer"><div class="timer-fill" id="timerFill"></div></div>
-      <div class="timer-text" id="timerText">45 sn</div>
-    </div>
+    ${timerHtml(45)}
     <div class="card question-card">
       <div class="q-owner">${esc(q.category || 'Birlikte')}</div>
       <h2 class="question-text">${esc(q.text)}</h2>
@@ -2051,6 +2046,28 @@ function scorebarHtml(s) {
   `;
 }
 
+function timerHtml(seconds) {
+  return `
+    <div class="timer-wrap">
+      <div class="timer-ring">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <defs>
+            <linearGradient id="timerGradient" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#63e2c0"></stop>
+              <stop offset="0.55" stop-color="#ffd166"></stop>
+              <stop offset="1" stop-color="#ff5f8f"></stop>
+            </linearGradient>
+          </defs>
+          <circle class="timer-ring-track" cx="24" cy="24" r="20"></circle>
+          <circle class="timer-ring-fill" id="timerRing" cx="24" cy="24" r="20" pathLength="100"></circle>
+        </svg>
+        <span class="timer-text" id="timerText">${seconds} sn</span>
+      </div>
+      <div class="timer" hidden><div class="timer-fill" id="timerFill"></div></div>
+    </div>
+  `;
+}
+
 function showQuestionTransition(isFirst, previousNumber, question) {
   const box = $('transition');
   $('transEmoji').textContent = isFirst ? '🎯' : '✅';
@@ -2241,10 +2258,7 @@ function renderPlay() {
 
   $('playBody').innerHTML = `
     ${scorebarHtml(s)}
-    <div class="timer-wrap">
-      <div class="timer"><div class="timer-fill" id="timerFill"></div></div>
-      <span class="timer-text" id="timerText">${s.guessSeconds} sn</span>
-    </div>
+    ${timerHtml(s.guessSeconds)}
     ${turnBanner}
     ${body}
   `;
@@ -2331,6 +2345,12 @@ function updateTimer() {
   const ratio = Math.max(0, Math.min(1, left / total));
   fill.style.width = (ratio * 100).toFixed(1) + '%';
   fill.classList.toggle('low', ratio < 0.3);
+  const ring = document.getElementById('timerRing');
+  if (ring) {
+    ring.style.strokeDashoffset = (100 - ratio * 100).toFixed(2);
+    const ringWrap = ring.closest('.timer-ring');
+    if (ringWrap) ringWrap.classList.toggle('is-low', left <= 10000);
+  }
   text.textContent = Math.ceil(left / 1000) + ' sn';
 
   const paused = teamPlay
