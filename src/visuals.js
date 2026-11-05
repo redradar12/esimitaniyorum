@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { gsap } from 'gsap';
 
 /* ------------------------------------------------------------------ */
-/*  Eşimi Tanıyorum — görsel katman                                   */
+/*  Seni Tanıyorum — görsel katman                                   */
 /*  Oyun mantığına dokunmaz: sadece ekran geçişi, skor, 3D ve mikro   */
 /*  animasyonları yönetir.                                            */
 /* ------------------------------------------------------------------ */
@@ -102,7 +102,7 @@ document.addEventListener('screenchange', (event) => {
 });
 
 /* ------------------------------------------------------------------ */
-/*  3D kalpler                                                        */
+/*  3D şekiller                                                        */
 /* ------------------------------------------------------------------ */
 
 const canvas = $('#scene-canvas');
@@ -111,10 +111,10 @@ let scene = null;
 let camera = null;
 let bgGroup = null;
 let burstGroup = null;
-let hearts = [];
+let floaters = [];
 let glowTexture = null;
-let heartGeometry = null;
-let innerHeartGeometry = null;
+let shapeGeometries = [];
+let innerShapeGeometries = [];
 let sceneLoop = null;
 let sceneRunning = false;
 let celebrating = false;
@@ -123,7 +123,7 @@ let targetPointer = { x: 0, y: 0 };
 let pointer = { x: 0, y: 0 };
 let scrollOffset = 0;
 
-const palette = [0xff5f8f, 0xff8f86, 0xffb07c, 0xff9fc3, 0x9b7bff, 0x63e2c0];
+const palette = [0x8b5cf6, 0x22d3ee, 0x34d399, 0xfbbf24, 0x60a5fa, 0xfb7185];
 
 function supportsWebGL() {
   try {
@@ -143,65 +143,58 @@ function makeGlowTexture() {
   surface.height = 128;
   const ctx = surface.getContext('2d');
   const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-  gradient.addColorStop(0, 'rgba(255, 235, 242, .85)');
-  gradient.addColorStop(0.16, 'rgba(255, 160, 190, .55)');
-  gradient.addColorStop(0.5, 'rgba(255, 95, 143, .16)');
-  gradient.addColorStop(1, 'rgba(255, 95, 143, 0)');
+  gradient.addColorStop(0, 'rgba(240, 248, 255, .85)');
+  gradient.addColorStop(0.16, 'rgba(139, 92, 246, .55)');
+  gradient.addColorStop(0.5, 'rgba(34, 211, 238, .16)');
+  gradient.addColorStop(1, 'rgba(34, 211, 238, 0)');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 128, 128);
   return new THREE.CanvasTexture(surface);
 }
 
-function makeHeartGeometry() {
-  const shape = new THREE.Shape();
-  shape.moveTo(0, 0.5);
-  shape.bezierCurveTo(0, 0.5, -0.4, 1.25, -1.25, 1.25);
-  shape.bezierCurveTo(-2.3, 1.25, -2.3, -0.1, -2.3, -0.1);
-  shape.bezierCurveTo(-2.3, -1.05, -1.2, -1.95, 0, -2.65);
-  shape.bezierCurveTo(1.2, -1.95, 2.3, -1.05, 2.3, -0.1);
-  shape.bezierCurveTo(2.3, -0.1, 2.3, 1.25, 1.25, 1.25);
-  shape.bezierCurveTo(0.4, 1.25, 0, 0.5, 0, 0.5);
-
-  const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth: 0.62,
-    steps: 1,
-    bevelEnabled: true,
-    bevelSegments: 5,
-    bevelSize: 0.16,
-    bevelThickness: 0.16,
-    curveSegments: 14,
+function makeShapeGeometries() {
+  const geometries = [
+    new THREE.IcosahedronGeometry(1, 1),
+    new THREE.OctahedronGeometry(1.05, 0),
+    new THREE.TorusGeometry(0.72, 0.26, 16, 32),
+    new THREE.SphereGeometry(0.82, 28, 18),
+    new THREE.TetrahedronGeometry(1.1, 1),
+    new THREE.DodecahedronGeometry(0.95, 0),
+  ];
+  geometries.forEach((geometry) => {
+    geometry.computeVertexNormals();
   });
-  geometry.center();
-  geometry.computeVertexNormals();
-  return geometry;
+  return geometries;
 }
 
-function createHeart(color, scale, burst = false) {
+function createFloater(color, scale, shapeIndex, burst = false) {
   const group = new THREE.Group();
+  const outerIndex = shapeIndex % shapeGeometries.length;
+  const innerIndex = shapeIndex % innerShapeGeometries.length;
 
   if (!burst) {
     const outerMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xffe2ec,
+      color: 0xdff7ff,
       metalness: 0.05,
       roughness: 0.08,
       transparent: true,
-      opacity: 0.31,
+      opacity: 0.26,
       clearcoat: 1,
       clearcoatRoughness: 0.06,
       side: THREE.DoubleSide,
       depthWrite: false,
     });
-    const outer = new THREE.Mesh(heartGeometry, outerMaterial);
+    const outer = new THREE.Mesh(shapeGeometries[outerIndex], outerMaterial);
     group.add(outer);
 
     const innerMaterial = new THREE.MeshStandardMaterial({
       color,
       emissive: color,
-      emissiveIntensity: 0.6,
-      metalness: 0.18,
-      roughness: 0.28,
+      emissiveIntensity: 0.55,
+      metalness: 0.2,
+      roughness: 0.26,
     });
-    const inner = new THREE.Mesh(innerHeartGeometry, innerMaterial);
+    const inner = new THREE.Mesh(innerShapeGeometries[innerIndex], innerMaterial);
     group.add(inner);
 
     if (glowTexture) {
@@ -214,7 +207,7 @@ function createHeart(color, scale, burst = false) {
           blending: THREE.AdditiveBlending,
         })
       );
-      glow.scale.setScalar(1.2);
+      glow.scale.setScalar(1.35);
       glow.position.z = -0.25;
       group.add(glow);
     }
@@ -229,7 +222,7 @@ function createHeart(color, scale, burst = false) {
       opacity: 1,
       side: THREE.DoubleSide,
     });
-    const mesh = new THREE.Mesh(heartGeometry, material);
+    const mesh = new THREE.Mesh(shapeGeometries[outerIndex], material);
     mesh.scale.setScalar(scale);
     return mesh;
   }
@@ -239,26 +232,26 @@ function createHeart(color, scale, burst = false) {
 }
 
 function addLights() {
-  scene.add(new THREE.HemisphereLight(0xffd9e8, 0x160b26, 1.15));
+  scene.add(new THREE.HemisphereLight(0xdff7ff, 0x0a0f1f, 1.15));
 
   const key = new THREE.DirectionalLight(0xffffff, 2.1);
   key.position.set(4, 6, 7);
   scene.add(key);
 
-  const roseLight = new THREE.PointLight(0xff5f8f, 32, 22);
-  roseLight.position.set(-4, 2, 4);
-  scene.add(roseLight);
+  const violetLight = new THREE.PointLight(0x8b5cf6, 32, 22);
+  violetLight.position.set(-4, 2, 4);
+  scene.add(violetLight);
 
-  const mintLight = new THREE.PointLight(0x63e2c0, 15, 20);
-  mintLight.position.set(4, -3, 3);
-  scene.add(mintLight);
+  const cyanLight = new THREE.PointLight(0x22d3ee, 15, 20);
+  cyanLight.position.set(4, -3, 3);
+  scene.add(cyanLight);
 
-  const goldLight = new THREE.PointLight(0xffd166, 12, 18);
-  goldLight.position.set(0, 4, 2);
-  scene.add(goldLight);
+  const amberLight = new THREE.PointLight(0xfbbf24, 12, 18);
+  amberLight.position.set(0, 4, 2);
+  scene.add(amberLight);
 }
 
-function buildHearts() {
+function buildFloaters() {
   if (!bgGroup) return;
   while (bgGroup.children.length) {
     const child = bgGroup.children.pop();
@@ -269,7 +262,7 @@ function buildHearts() {
       }
     });
   }
-  hearts = [];
+  floaters = [];
 
   const desktop = window.innerWidth >= 900;
   const lowPower =
@@ -282,8 +275,8 @@ function buildHearts() {
 
   for (let i = 0; i < count; i++) {
     const color = palette[i % palette.length];
-    const scale = rand(0.11, desktop ? 0.25 : 0.17);
-    const heart = createHeart(color, scale);
+    const scale = rand(0.22, desktop ? 0.48 : 0.36);
+    const floater = createFloater(color, scale, i);
     const side = i % 2 === 0 ? -1 : 1;
     const baseZ = rand(-4.6, -1.1);
     const distance = 9 - baseZ;
@@ -292,9 +285,9 @@ function buildHearts() {
     const baseX = side * rand(halfW * 0.78, halfW * 0.94);
     const baseY = rand(-halfH * 0.88, halfH * 0.88);
 
-    heart.position.set(baseX, baseY, baseZ);
-    heart.rotation.set(rand(-0.36, 0.36), rand(-0.36, 0.36), rand(-0.28, 0.28));
-    heart.userData = {
+    floater.position.set(baseX, baseY, baseZ);
+    floater.rotation.set(rand(-0.36, 0.36), rand(-0.36, 0.36), rand(-0.28, 0.28));
+    floater.userData = {
       baseX,
       baseY,
       baseZ,
@@ -302,12 +295,12 @@ function buildHearts() {
       speed: rand(0.16, 0.38),
       driftX: rand(0.18, 0.55),
       driftY: rand(0.12, 0.42),
-      rotX: heart.rotation.x,
-      rotY: heart.rotation.y,
-      rotZ: heart.rotation.z,
+      rotX: floater.rotation.x,
+      rotY: floater.rotation.y,
+      rotZ: floater.rotation.z,
     };
-    bgGroup.add(heart);
-    hearts.push(heart);
+    bgGroup.add(floater);
+    floaters.push(floater);
   }
 }
 
@@ -351,11 +344,13 @@ function initScene() {
   scene.add(bgGroup, burstGroup);
 
   glowTexture = makeGlowTexture();
-  heartGeometry = makeHeartGeometry();
-  innerHeartGeometry = heartGeometry.clone().scale(0.74, 0.74, 0.84);
+  shapeGeometries = makeShapeGeometries();
+  innerShapeGeometries = shapeGeometries.map((geometry) =>
+    geometry.clone().scale(0.62, 0.62, 0.62)
+  );
 
   addLights();
-  buildHearts();
+  buildFloaters();
 
   if (!reduceMotion) startSceneLoop();
   else renderScene();
@@ -380,15 +375,15 @@ function tickScene(now) {
     bgGroup.position.y = -scrollOffset * 1.15;
   }
 
-  hearts.forEach((heart) => {
-    const d = heart.userData;
-    heart.position.x = d.baseX + Math.sin(t * d.speed + d.phase) * d.driftX;
-    heart.position.y =
+  floaters.forEach((floater) => {
+    const d = floater.userData;
+    floater.position.x = d.baseX + Math.sin(t * d.speed + d.phase) * d.driftX;
+    floater.position.y =
       d.baseY + Math.cos(t * d.speed * 0.82 + d.phase) * d.driftY;
-    heart.position.z = d.baseZ + Math.sin(t * d.speed * 0.55 + d.phase) * 0.28;
-    heart.rotation.x = d.rotX + Math.sin(t * d.speed * 0.7 + d.phase) * 0.14;
-    heart.rotation.y = d.rotY + Math.sin(t * d.speed * 0.4 + d.phase) * 0.22;
-    heart.rotation.z = d.rotZ + Math.cos(t * d.speed * 0.5 + d.phase) * 0.09;
+    floater.position.z = d.baseZ + Math.sin(t * d.speed * 0.55 + d.phase) * 0.28;
+    floater.rotation.x = d.rotX + Math.sin(t * d.speed * 0.7 + d.phase) * 0.14;
+    floater.rotation.y = d.rotY + Math.sin(t * d.speed * 0.4 + d.phase) * 0.22;
+    floater.rotation.z = d.rotZ + Math.cos(t * d.speed * 0.5 + d.phase) * 0.09;
   });
 
   renderScene();
@@ -419,7 +414,7 @@ function bindSceneEvents() {
         camera.updateProjectionMatrix();
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         renderer.setSize(window.innerWidth, window.innerHeight);
-        buildHearts();
+        buildFloaters();
         if (reduceMotion) renderScene();
       });
     },
@@ -490,11 +485,11 @@ function celebrate() {
   burstGroup.visible = true;
   clearBurst();
 
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 28; i++) {
     const color = palette[i % palette.length];
-    const heart = createHeart(color, rand(0.025, 0.065), true);
-    heart.position.set(rand(-0.8, 0.8), rand(0.8, 1.6), rand(2.2, 3.4));
-    burstGroup.add(heart);
+    const floater = createFloater(color, rand(0.04, 0.09), Math.floor(rand(0, shapeGeometries.length)), true);
+    floater.position.set(rand(-0.9, 0.9), rand(1.4, 2.2), rand(2.2, 3.4));
+    burstGroup.add(floater);
 
     const angle = -Math.PI / 2 + rand(-0.95, 0.95);
     const speed = rand(1.4, 2.9);
@@ -503,7 +498,7 @@ function celebrate() {
 
     const timeline = gsap.timeline();
     timeline
-      .to(heart.position, {
+      .to(floater.position, {
         x: `+=${vx}`,
         y: `+=${vy}`,
         z: rand(2.2, 3.8),
@@ -511,7 +506,7 @@ function celebrate() {
         ease: 'power2.out',
       })
       .to(
-        heart.position,
+        floater.position,
         {
           x: `+=${vx * 0.35}`,
           y: `+=${vy * 0.1}`,
@@ -521,14 +516,14 @@ function celebrate() {
         },
         '>-0.2'
       );
-    gsap.to(heart.rotation, {
+    gsap.to(floater.rotation, {
       x: rand(-4, 4),
       y: rand(-4, 4),
       z: rand(-4, 4),
       duration: rand(2.2, 3.2),
       ease: 'none',
     });
-    gsap.to(heart.material, {
+    gsap.to(floater.material, {
       opacity: 0,
       duration: 0.9,
       delay: rand(1.1, 1.5),
@@ -651,7 +646,7 @@ function scanPlay() {
     const key = verdict.textContent.trim().replace(/\s+/g, ' ').slice(0, 100);
     const emoji = $('.verdict-emoji', verdict)?.textContent || '';
     const good = ['🎯', '✨', '✅'].some((symbol) => emoji.includes(symbol));
-    const bad = ['💔', '🧩', '⏰'].some((symbol) => emoji.includes(symbol));
+    const bad = ['🤔', '🧩', '⏰'].some((symbol) => emoji.includes(symbol));
     verdict.classList.toggle('is-correct', good);
     verdict.classList.toggle('is-wrong', bad);
 

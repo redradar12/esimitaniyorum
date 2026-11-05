@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-title Esimi Taniyorum
+title Seni Taniyorum
 cd /d "%~dp0"
 
 if not exist node_modules (

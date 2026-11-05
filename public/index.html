@@ -3,11 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#160b26" />
-  <meta name="description" content="Eşimi Tanıyorum — sevgilinle/eşinle iki telefonla oynanan aşk bilgi yarışması." />
+  <meta name="theme-color" content="#0a0f1f" />
+  <meta name="description" content="Seni Tanıyorum — arkadaşlar ve çiftler için iki telefonla oynanan bilgi ve tanıma yarışması." />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Seni Tanıyorum" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Eşimi Tanıyorum 💞</title>
+  <title>Seni Tanıyorum ✨</title>
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/icon.svg" />
@@ -32,8 +33,8 @@
         <div class="brand">
           <img class="brand-mark" src="/icon.svg" alt="" width="40" height="40" />
           <div class="brand-text">
-            <b>Eşimi Tanıyorum</b>
-            <span>Çiftler için oyun</span>
+            <b>Seni Tanıyorum</b>
+            <span>Arkadaşlar ve çiftlerle</span>
           </div>
         </div>
         <button id="howBtn" class="icon-btn" aria-label="Nasıl oynanır?">?</button>
@@ -42,7 +43,7 @@
       <div class="home-hero">
         <span class="eyebrow">BİRLİKTE OYNAYIN</span>
         <h1>Birbirinizi<br /><span>ne kadar iyi</span><br />tanıyorsunuz?</h1>
-        <p class="home-sub">Dört mod, tek oda — soru-cevap, adam asmaca, doğru/yanlış ve çiftler kapışması. İster yazarak ister harf harf oynayın.</p>
+        <p class="home-sub">Dört mod, tek oda — soru-cevap, adam asmaca, doğru/yanlış ve takımlar kapışması. İster yazarak ister harf harf oynayın.</p>
         <div class="hero-meta">
           <span><i class="meta-dot"></i>2 telefon</span>
           <span><i class="meta-dot"></i>gerçek zamanlı</span>
@@ -101,15 +102,15 @@
                 <path d="M12 12.5V16M9 20h6M10 20v-2.5h4V20"/>
               </svg>
             </span>
-            <b>Çiftler</b>
+            <b>Takımlar</b>
             <span class="mode-check" aria-hidden="true"></span>
           </button>
         </div>
         <p class="mode-desc" id="modeDesc">Klasik mod: cevabı yazarak tahmin et.</p>
         <div class="team-count-row" id="teamCountRow" hidden>
-          <span class="team-count-label">Kaç çift?</span>
-          <button type="button" class="team-count on" data-action="pickTeams" data-teams="2">2 çift · 4 kişi</button>
-          <button type="button" class="team-count" data-action="pickTeams" data-teams="3">3 çift · 6 kişi</button>
+          <span class="team-count-label">Kaç takım?</span>
+          <button type="button" class="team-count on" data-action="pickTeams" data-teams="2">2 takım · 4 kişi</button>
+          <button type="button" class="team-count" data-action="pickTeams" data-teams="3">3 takım · 6 kişi</button>
         </div>
       </section>
 
@@ -142,7 +143,7 @@
 
       <footer class="home-footer">
         <span class="status-dot"></span>
-        <span>Aynı Wi-Fi’de iki telefon · Sesli sohbet</span>
+        <span>İki telefon · Gerçek zamanlı · Sesli sohbet</span>
       </footer>
     </section>
 
@@ -156,12 +157,12 @@
 
       <div class="lobby-hero">
         <div class="pulse-ring"></div>
-        <div class="lobby-emoji">💞</div>
+        <div class="lobby-emoji">✨</div>
       </div>
 
       <h2 class="center">Oda hazır!</h2>
       <div class="mode-pill" id="lobbyMode">⌨️ Soru-Cevap</div>
-      <p class="center muted">Kodu eşinle paylaş, o da bu odaya katılsın.</p>
+      <p class="center muted">Kodu arkadaşınla paylaş, o da bu odaya katılsın.</p>
 
       <div class="code-box">
         <span id="roomCode">-----</span>
@@ -171,7 +172,7 @@
         <img id="qrImg" alt="Odaya katılma QR kodu" />
         <div class="qr-text">
           <b>Telefonla okut</b>
-          <span>Eşin telefonunun kamerasını açıp bu kodu okutsun; oda otomatik açılır.</span>
+          <span>Arkadaşının telefonunun kamerasını açıp bu kodu okutsun; oda otomatik açılır.</span>
         </div>
       </div>
 
@@ -189,14 +190,14 @@
     <section id="screen-teamLobby" class="screen">
       <div class="screen-head">
         <button class="icon-btn" data-action="leave" aria-label="Çık">←</button>
-        <span class="screen-title">Çiftler Kapışması</span>
+        <span class="screen-title">Takımlar Kapışması</span>
         <button class="icon-btn" data-action="help" aria-label="Nasıl oynanır">?</button>
       </div>
 
       <div class="team-lobby-head">
         <span class="eyebrow">ODA HAZIR</span>
-        <h2>Çiftler yarışıyor</h2>
-        <p class="muted">Her çift kendi iki telefonundan oynar. Eşler aynı cevabı verirse puan kazanır.</p>
+        <h2>Takımlar yarışıyor</h2>
+        <p class="muted">Her takım kendi iki telefonundan oynar. Takım arkadaşları aynı cevabı verirse puan kazanır.</p>
       </div>
 
       <div class="code-box">
@@ -213,7 +214,7 @@
         <button id="teamShareBtn" class="btn btn-ghost">Paylaş</button>
       </div>
 
-      <p class="footnote center">Davetleri çiftlere ayrı ayrı gönder; her çift kendi bağlantısıyla katılsın.</p>
+      <p class="footnote center">Davetleri takımlara ayrı ayrı gönder; her takım kendi bağlantısıyla katılsın.</p>
     </section>
 
     <!-- ================= SORU HAZIRLIĞI ================= -->
@@ -265,11 +266,11 @@
         <h2>Hazırsınız! 🎉</h2>
         <button type="button" class="icon-btn" data-action="closeIntro" aria-label="Kapat">✕</button>
       </div>
-      <p class="intro-names" id="introNames">Ayşe 💞 Ahmet</p>
+      <p class="intro-names" id="introNames">Ayşe ✨ Ahmet</p>
       <p class="intro-lead">Odaya birlikte girdiniz. Şimdi sırayla birbirinizi tanıma zamanı.</p>
       <ol class="steps intro-steps">
         <li><b>Kendinle ilgili 5 soru yaz.</b> Her sorunun doğru cevabını da ekle. Örnek: “En sevdiğim renk ne?” → “Mavi”.</li>
-        <li><b>Eşin tahmin etsin.</b> Sıra onun sorusuna gelince bu kez sen tahmin edeceksin. Her soru için 45 saniyen var.</li>
+        <li><b>Rakibin tahmin etsin.</b> Sıra onun sorusuna gelince bu kez sen tahmin edeceksin. Her soru için 45 saniyen var.</li>
         <li><b>Puan toplayın.</b> Tam bilirsen 10 puan. Tur bitince ikiniz de yeni 5 soru hazırlayıp devam edersiniz.</li>
       </ol>
       <button id="introStart" class="btn btn-primary" data-action="closeIntro">Başla, sorularımı yazayım →</button>
@@ -285,15 +286,15 @@
         <button id="helpClose" class="icon-btn" aria-label="Kapat">✕</button>
       </div>
       <ol class="steps">
-        <li><b>Mod seç ve oda kur.</b> Soru-Cevap, Adam Asmaca, Doğru/Yanlış veya Çiftler Kapışması. Takma adını yaz, oda kodunu eşinle paylaş.</li>
-        <li><b>Eşin katılsın.</b> Kodu kendi telefonuna girsin. Aynı Wi-Fi’de olmalısınız.</li>
+        <li><b>Mod seç ve oda kur.</b> Soru-Cevap, Adam Asmaca, Doğru/Yanlış veya Takımlar Kapışması. Takma adını yaz, oda kodunu arkadaşınla paylaş.</li>
+        <li><b>Arkadaşın katılsın.</b> Kodu kendi telefonuna girsin; aynı Wi-Fi’de ya da internette olabilirsiniz.</li>
         <li><b>5 soru hazırla.</b> Soru-Cevap’ta kendinle ilgili 5 soru ve cevabını yaz. 10 kategoride 200+ hazır soru var; “Tümünü gör” ile hepsine bakabilir, arayabilirsin.</li>
         <li><b>Moda göre oyna.</b> Soru-Cevap’ta cevabı yazarsın, Adam Asmaca’da harf seçersin, Doğru/Yanlış’ta karar verirsin.</li>
-        <li><b>Çiftler Kapışması.</b> 2 veya 3 çift aynı odada yarışır. Her çifte ayrı davet bağlantısı gönder; iki eş de aynı bağlantıyla katılır. Sistem ortak geçmiş soruları sorar; eşler aynı cevabı verirse çift +10 puan kazanır.</li>
+        <li><b>Takımlar Kapışması.</b> 2 veya 3 takım aynı odada yarışır. Her takıma ayrı davet bağlantısı gönder; iki takım arkadaşı da aynı bağlantıyla katılır. Sistem ortak geçmiş soruları sorar; takım arkadaşları aynı cevabı verirse takım +10 puan kazanır.</li>
         <li><b>Puan toplayın.</b> Doğru cevaplar puan kazandırır. Tur bitince ikiniz de yeni 5 soru hazırlayıp devam edersiniz.</li>
-        <li><b>Sesli sohbet (isteğe bağlı).</b> Sağ alttaki 🎙️ düğmesinden mikrofonu aç; eşin de açınca konuşabilirsiniz.</li>
+        <li><b>Sesli sohbet (isteğe bağlı).</b> Sağ alttaki 🎙️ düğmesinden mikrofonu aç; arkadaşın da açınca konuşabilirsiniz.</li>
       </ol>
-      <p class="hint">İpucu: Cevapları kısa tut (ör. “Adana kebap”, “mavi”). Böylece eşleşmesi kolay olur.</p>
+      <p class="hint">İpucu: Cevapları kısa tut (ör. “Adana kebap”, “mavi”). Böylece aynı cevabı vermeniz kolay olur.</p>
       <button id="helpOk" class="btn btn-primary">Anladım</button>
     </div>
   </div>
@@ -323,21 +324,21 @@
   <div id="teamInviteModal" class="modal" hidden>
     <div class="modal-card">
       <div class="modal-head">
-        <h2 id="teamInviteTitle">Çift daveti</h2>
+        <h2 id="teamInviteTitle">Takım daveti</h2>
         <button type="button" class="icon-btn" data-action="closeTeamInvite" aria-label="Kapat">✕</button>
       </div>
-      <img id="teamInviteQr" class="team-invite-qr" alt="Çift daveti QR kodu" />
+      <img id="teamInviteQr" class="team-invite-qr" alt="Takım daveti QR kodu" />
       <p class="hint center" id="teamInviteLink"></p>
       <button class="btn btn-primary btn-block" data-action="teamInviteShare">WhatsApp’tan gönder</button>
       <button class="btn btn-block" data-action="teamInviteCopy">Bağlantıyı kopyala</button>
-      <p class="hint" id="teamInviteNote">İki eş de bu bağlantıyı kullanmalı. Biri ilk, diğeri ikinci oyuncu olarak aynı çifte katılır.</p>
+      <p class="hint" id="teamInviteNote">İki takım arkadaşı da bu bağlantıyı kullanmalı. Biri ilk, diğeri ikinci oyuncu olarak aynı takıma katılır.</p>
     </div>
   </div>
 
   <div id="pausedOverlay" class="paused" hidden>
     <div class="paused-card">
       <div class="spinner"></div>
-      <p id="pausedText">Eşinin bağlantısı bekleniyor…</p>
+      <p id="pausedText">Rakibinin bağlantısı bekleniyor…</p>
       <button class="btn" data-action="leave">Odadan ayrıl</button>
     </div>
   </div>
@@ -358,7 +359,7 @@
     <button id="voiceMuteBtn" class="btn btn-block" data-action="voiceMute" hidden>Sessize al</button>
     <button id="voiceUnlockBtn" class="btn btn-block" data-action="voiceUnlock" hidden>Sesi aç</button>
     <button id="voiceLeaveBtn" class="btn btn-ghost btn-block" data-action="voiceLeave" hidden>Görüşmeyi bitir</button>
-    <p class="hint">Ses doğrudan eşine gider, kaydedilmez. Kulaklık echo’yu azaltır.</p>
+    <p class="hint">Ses doğrudan karşındaki oyuncuya gider, kaydedilmez. Kulaklık echo’yu azaltır.</p>
   </div>
 
   <audio id="voiceAudio" autoplay playsinline></audio>

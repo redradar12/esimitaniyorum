@@ -1,5 +1,5 @@
 /* ==================================================================
-   Eşimi Tanıyorum — hazır soru bankası
+   Seni Tanıyorum — hazır soru bankası
    10 kategori, 200+ soru. Hepsi kısa cevapla oynanacak şekilde yazıldı.
    Yeni soru eklemek için ilgili kategorinin questions dizisine ekle.
    ================================================================== */
@@ -92,9 +92,9 @@ window.SORU_BANKASI = [
   {
     id: 'iliski',
     label: 'Biz & Anılar',
-    emoji: '💞',
+    emoji: '✨',
     questions: [
-      'İlk randevumuzda ne yaptık?',
+      'İlk kez birlikte ne yaptık?',
       'Beni ilk gördüğünde neredeydim?',
       'En çok birlikte güldüğümüz şey ne?',
       'Bana verdiğin ilk hediye neydi?',
@@ -102,8 +102,8 @@ window.SORU_BANKASI = [
       'Birlikte ilk gitmek istediğimiz yer neresi?',
       'Beni en çok ne şaşırtmıştı?',
       'En sevdiğim ortak anımız hangisi?',
-      'İlk buluşmada ne giymiştim?',
-      'İlk kez nerede el ele tutuştuk?',
+      'İlk kez buluştuğumuzda ne giymiştim?',
+      'İlk kez birlikte hangi oyunu oynadık?',
       'Birlikte izlediğimiz ilk film hangisi?',
       'En çok tartıştığımız konu ne?',
       'En sevdiğimiz ortak yemek ne?',
@@ -117,7 +117,7 @@ window.SORU_BANKASI = [
       'Sende en sevdiğim huy hangisi?',
       'İlk tanıştığımız yer neresi?',
       'Bana en çok hangi sözün dokundu?',
-      'İlk "seni seviyorum" nerede söylendi?',
+      'Birbirimizi ilk kez nasıl tarif ederdik?',
     ],
   },
   {
@@ -227,7 +227,7 @@ window.SORU_BANKASI = [
       'Hayalimdeki tatil evi nerede?',
       'Birlikte yapmak istediğim en büyük hayal ne?',
       '80 yaşında ne yapıyor olmak isterim?',
-      'Hayalimdeki düğün nasıl?',
+      'Hayalimdeki tatil nasıl?',
     ],
   },
   {
@@ -275,7 +275,7 @@ window.SORU_BANKASI = [
       'Ailemde bana en çok benzeyen kişi kim?',
       'Çocukluk arkadaşımın adı ne?',
       'Arkadaşlarımla en çok ne yaparım?',
-      'Düğünümüzde en çok kim ağlardı?',
+      'En unutulmaz kutlamamızda en çok kim gülerdi?',
     ],
   },
 ];

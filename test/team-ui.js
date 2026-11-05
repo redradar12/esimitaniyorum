@@ -1,10 +1,10 @@
 'use strict';
 
 /**
- * Çiftler Kapışması arayüz testi (4 oyuncu / 2 çift).
- * - Ev sahibi 2 çiftlik oda kurar, çift davetlerini paylaşır.
- * - Her çift kendi iki telefonundan aynı soruya cevap verir.
- * - Eşleşen cevaplar +10; 10 soru sonunda tur sonu ve final.
+ * Takımlar Kapışması arayüz testi (4 oyuncu / 2 takım).
+ * - Ev sahibi 2 takımlık oda kurar, takım davetlerini paylaşır.
+ * - Her takım kendi iki telefonundan aynı soruya cevap verir.
+ * - Aynı cevaplar +10; 10 soru sonunda tur sonu ve final.
  *
  *   npm run ciftler-ui
  */
@@ -103,9 +103,9 @@ async function answer(page, value) {
       rowHidden: document.getElementById('teamCountRow').hidden,
       desc: document.getElementById('modeDesc').textContent,
     }));
-    check(picked.mode === 'team', 'Çiftler modu seçildi');
-    check(picked.teamCount === 2, 'Varsayılan 2 çift');
-    check(picked.rowHidden === false, 'Çift sayısı seçimi görünür');
+    check(picked.mode === 'team', 'Takımlar modu seçildi');
+    check(picked.teamCount === 2, 'Varsayılan 2 takım');
+    check(picked.rowHidden === false, 'Takım sayısı seçimi görünür');
     check(picked.desc.includes('4-6'), 'Mod açıklaması güncellendi', picked.desc);
 
     await host.click('[data-action="pickTeams"][data-teams="3"]');
@@ -115,7 +115,7 @@ async function answer(page, value) {
       badge: document.getElementById('createPlayersBadge').textContent,
       on: document.querySelector('.team-count.on')?.dataset.teams,
     }));
-    check(three.count === 3 && three.on === '3', '3 çift seçilebiliyor', three);
+    check(three.count === 3 && three.on === '3', '3 takım seçilebiliyor', three);
     check(three.badge === '6 kişi', 'Rozet 6 kişiye güncellendi', three.badge);
     await host.click('[data-action="pickTeams"][data-teams="2"]');
     await sleep(150);
@@ -132,15 +132,15 @@ async function answer(page, value) {
       startDisabled: document.getElementById('teamStartBtn').disabled,
       hint: document.getElementById('teamStartHint').textContent,
     }));
-    check(lobby.screen === 'screen-teamLobby', 'Çiftler lobisi açıldı', lobby.screen);
+    check(lobby.screen === 'screen-teamLobby', 'Takımlar lobisi açıldı', lobby.screen);
     check(lobby.teamCode === code, 'Oda kodu görünüyor');
-    check(lobby.cards === 2, '2 çift kartı var');
-    check(lobby.inviteButtons === 2, 'Eksik çiftler için davet butonu var');
+    check(lobby.cards === 2, '2 takım kartı var');
+    check(lobby.inviteButtons === 2, 'Eksik takımlar için davet butonu var');
     check(lobby.startDisabled === true, 'Tek başına başlatma kapalı');
     await sleep(400);
     await host.screenshot({ path: path.join(OUT, '31-ciftler-lobisi-bos.png') });
 
-    console.log('\n2) Çift daveti');
+    console.log('\n2) Takım daveti');
     await host.click('[data-action="teamInvite"][data-team="1"]');
     await sleep(450);
     const invite = await host.evaluate(() => ({
@@ -150,7 +150,7 @@ async function answer(page, value) {
       link: document.getElementById('teamInviteLink').textContent,
     }));
     check(invite.hidden === false, 'Davet penceresi açıldı');
-    check(invite.qr.includes(`oda=${code}`) && invite.qr.includes('takim=1'), 'QR çift linki içeriyor');
+    check(invite.qr.includes(`oda=${code}`) && invite.qr.includes('takim=1'), 'QR takım linki içeriyor');
     check(invite.link.includes(`oda=${code}`) && invite.link.includes('takim=1'), 'Davet linki doğru');
     await host.screenshot({ path: path.join(OUT, '32-cift-daveti.png') });
     await host.click('[data-action="closeTeamInvite"]');
@@ -169,8 +169,8 @@ async function answer(page, value) {
       seat: app.state.me.seat,
       note: document.getElementById('joinTeamNote').hidden,
     }));
-    check(partnerView.screen === 'screen-teamLobby', 'Eş çiftler lobisinde');
-    check(partnerView.team === 1 && partnerView.seat === 1, 'Eş 1. çiftin 2. koltuğunda');
+    check(partnerView.screen === 'screen-teamLobby', 'Eş takımlar lobisinde');
+    check(partnerView.team === 1 && partnerView.seat === 1, 'Eş 1. takımın 2. koltuğunda');
 
     const rivalA = await newPage(browser, 'Zeynep');
     pages.push(rivalA);
@@ -198,12 +198,12 @@ async function answer(page, value) {
     }));
     check(
       fullLobby.names[0] === 'Ayşe & Ahmet' && fullLobby.names[1] === 'Zeynep & Mert',
-      'Çiftler doğru eşleşti',
+      'Takımlar doğru eşleşti',
       fullLobby.names
     );
     check(fullLobby.startDisabled === false, 'Oyun başlatılabilir');
     check(fullLobby.startText.includes('başlat'), 'Başlat butonu hazır');
-    check(fullLobby.inviteButtons === 0, 'Tamamlanan çiftlerde davet butonu yok');
+    check(fullLobby.inviteButtons === 0, 'Tamamlanan takımlarda davet butonu yok');
     await host.screenshot({ path: path.join(OUT, '33-ciftler-lobisi-dolu.png') });
 
     console.log('\n4) Oyun başlıyor');
@@ -224,10 +224,10 @@ async function answer(page, value) {
       input: Boolean(document.getElementById('teamAnswer')),
     }));
     check(play.screen === 'screen-play', 'Oyun ekranı açıldı');
-    check(play.title === 'Çiftler Kapışması', 'Başlık doğru');
+    check(play.title === 'Takımlar Kapışması', 'Başlık doğru');
     check(play.counter === 'Soru 1/10', 'Sayaç 1/10', play.counter);
     check(Boolean(play.question), 'Soru görünüyor');
-    check(play.scores.length === 2, '2 çift skoru görünüyor');
+    check(play.scores.length === 2, '2 takım skoru görünüyor');
     check(play.input === true, 'Cevap girişi var');
     await host.screenshot({ path: path.join(OUT, '34-ciftler-soru.png') });
 
@@ -283,10 +283,10 @@ async function answer(page, value) {
       })),
       continueBtn: Boolean(document.querySelector('[data-action="teamContinue"]')),
     }));
-    check(reveal.verdict === 'Eşleştiniz!', '1. çift eşleşti', reveal.verdict);
-    check(reveal.results.length === 2, 'İki çift sonucu var');
-    check(reveal.results[0].badge.includes('+10'), '1. çift +10 aldı', reveal.results[0]);
-    check(reveal.results[1].badge.includes('Eşleşmedi'), '2. çift eşleşmedi', reveal.results[1]);
+    check(reveal.verdict === 'Aynı cevabı verdiniz!', '1. takım eşleşti', reveal.verdict);
+    check(reveal.results.length === 2, 'İki takım sonucu var');
+    check(reveal.results[0].badge.includes('+10'), '1. takım +10 aldı', reveal.results[0]);
+    check(reveal.results[1].badge.includes('Farklı cevaplar'), '2. takım eşleşmedi', reveal.results[1]);
     check(reveal.continueBtn === true, 'Devam butonu var');
     await host.screenshot({ path: path.join(OUT, '36-ciftler-sonuc.png') });
 
@@ -346,13 +346,13 @@ async function answer(page, value) {
       entries: document.querySelectorAll('#finalBody .team-entry').length,
     }));
     check(final.screen === 'screen-final', 'Final ekranı');
-    check(final.winner === 'Ayşe & Ahmet kazandı!', 'Kazanan çift doğru', final.winner);
+    check(final.winner === 'Ayşe & Ahmet kazandı!', 'Kazanan takım doğru', final.winner);
     check(final.scores[0] === 100 && final.scores[1] === 50, 'Final skorları doğru');
     check(final.playAgain === true, 'Yeniden oyna butonu var');
     check(final.entries === 10, 'Finalde tüm sorular var');
     await host.screenshot({ path: path.join(OUT, '38-ciftler-final.png') });
 
-    console.log('\n8) 3 çift / 6 kişi');
+    console.log('\n8) 3 takım / 6 kişi');
     const host3 = await newPage(browser, 'Can');
     pages.push(host3);
     await host3.click('.home-mode[data-mode="team"]');
@@ -384,12 +384,12 @@ async function answer(page, value) {
       names: app.state.teams.map((t) => t.name),
       startText: document.getElementById('teamStartBtn').textContent,
     }));
-    check(lobby3.cards === 3, '3 çift kartı görünüyor');
+    check(lobby3.cards === 3, '3 takım kartı görünüyor');
     check(
       lobby3.names.join('|') === 'Can & Ece|Deniz & Efe|Fatma & Gökhan',
-      '3 çiftin isimleri doğru'
+      '3 takımın isimleri doğru'
     );
-    check(lobby3.startText === 'Oyunu başlat', '3 çift hazır başlat butonu');
+    check(lobby3.startText === 'Oyunu başlat', '3 takım hazır başlat butonu');
     await sleep(350);
     await host3.screenshot({ path: path.join(OUT, '39-ciftler-3-cift-lobi.png') });
 
@@ -401,7 +401,7 @@ async function answer(page, value) {
       teamIds: app.state.teamIds.length,
       playerCount: app.state.teamQuestion.playerCount,
     }));
-    check(play3.scoreNames === 3 && play3.teamIds === 3, '3 çift skorbarı görünüyor');
+    check(play3.scoreNames === 3 && play3.teamIds === 3, '3 takım skorbarı görünüyor');
     check(play3.playerCount === 6, '6 oyuncu cevap verecek');
     await host3.screenshot({ path: path.join(OUT, '40-ciftler-3-cift-oyun.png') });
 
@@ -430,7 +430,7 @@ async function answer(page, value) {
   }
 
   console.log('\n───────────────────────────────');
-  if (failures === 0) console.log('✅ Tüm çiftler kapışması arayüz testleri geçti');
+  if (failures === 0) console.log('✅ Tüm takımlar kapışması arayüz testleri geçti');
   else console.log(`❌ ${failures} kontrol başarısız`);
   process.exit(failures === 0 ? 0 : 1);
 })();

@@ -1,8 +1,8 @@
 'use strict';
 
 /**
- * Eşimi Tanıyorum — oyun sunucusu
- * İki telefon aynı Wi-Fi'deyken bu sunucu üzerinden gerçek zamanlı oynar.
+ * Seni Tanıyorum — oyun sunucusu
+ * İki telefonla gerçek zamanlı oynanan bilgi ve tanıma yarışması.
  */
 
 const path = require('path');
@@ -437,8 +437,8 @@ function teamStateFor(room, index, state, me) {
       .sort((a, b) => (a.seat || 0) - (b.seat || 0));
     teams.push({
       index: t,
-      name: members.length ? members.map((m) => m.name).join(' & ') : `Çift ${t}`,
-      shortName: `Çift ${t}`,
+      name: members.length ? members.map((m) => m.name).join(' & ') : `Takım ${t}`,
+      shortName: `Takım ${t}`,
       members: members.map((m) => ({
         id: m.id,
         name: m.name,
@@ -1008,7 +1008,7 @@ function nextQuizStatement(room) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Takım modu: Çiftler Kapışması                                      */
+/*  Takım modu: Takımlar Kapışması                                     */
 /* ------------------------------------------------------------------ */
 
 function pickTeamQuestions(room, count) {
@@ -1203,7 +1203,7 @@ io.on('connection', (socket) => {
       }
       const members = room.players.filter((p) => p.team === target);
       if (members.length >= 2) {
-        return sendError(socket, 'team_full', 'Bu çift dolu. Başka bir davet bağlantısı kullan.');
+        return sendError(socket, 'team_full', 'Bu takım dolu. Başka bir davet bağlantısı kullan.');
       }
 
       const player = makePlayer(clean, room.players.length);
@@ -1224,7 +1224,7 @@ io.on('connection', (socket) => {
       });
       broadcast(room);
       socket.to(room.code).emit('toast', {
-        text: `${clean} ${target}. çifte katıldı 💞`,
+        text: `${clean} ${target}. takıma katıldı ✨`,
       });
       return;
     }
@@ -1248,7 +1248,7 @@ io.on('connection', (socket) => {
 
     socket.emit('joined', { code: room.code, playerId: player.id, index: 1 });
     io.to(room.code).emit('toast', {
-      text: `${clean} odaya katıldı 💞`,
+      text: `${clean} odaya katıldı ✨`,
     });
   });
 
@@ -1499,10 +1499,10 @@ io.on('connection', (socket) => {
       (t) => room.players.filter((p) => p.team === t).length !== 2
     );
     if (incomplete) {
-      return sendError(socket, 'teams_incomplete', 'Her çiftin iki oyuncusu olmalı.');
+      return sendError(socket, 'teams_incomplete', 'Her takımın iki oyuncusu olmalı.');
     }
     if (complete.length < 2) {
-      return sendError(socket, 'teams_missing', 'En az 2 çift gerekli.');
+      return sendError(socket, 'teams_missing', 'En az 2 takım gerekli.');
     }
     startTeamGame(room);
   });
@@ -1817,7 +1817,7 @@ server.on('error', (error) => {
 server.listen(PORT, HOST, () => {
   const addresses = lanAddresses();
   console.log('');
-  console.log('  Esimi Taniyorum calisiyor');
+  console.log('  Seni Taniyorum calisiyor');
   console.log('  -----------------------------------------');
   console.log(`  Bu bilgisayarda : http://localhost:${PORT}`);
   for (const address of addresses) {

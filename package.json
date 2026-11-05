@@ -2,7 +2,7 @@
   "name": "esimi-taniyorum",
   "version": "1.0.0",
   "private": true,
-  "description": "Eşimi Tanıyorum - iki kişilik, iki telefonla oynanan aşk bilgi yarışması",
+  "description": "Seni Tanıyorum - arkadaşlar ve çiftler için iki telefonla oynanan bilgi ve tanıma yarışması",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -1,7 +1,7 @@
 'use strict';
 
 /* ==================================================================
-   Eşimi Tanıyorum — istemci mantığı
+   Seni Tanıyorum — istemci mantığı
    ================================================================== */
 
 const socket = io({
@@ -48,9 +48,9 @@ const MODES = {
   },
   team: {
     emoji: '🏆',
-    label: 'Çiftler Kapışması',
-    short: 'Çiftler',
-    desc: '4-6 kişi: her çift aynı cevabı vermeye çalışır.',
+    label: 'Takımlar Kapışması',
+    short: 'Takımlar',
+    desc: '4-6 kişi: takım arkadaşları aynı cevabı vermeye çalışır.',
   },
 };
 
@@ -262,8 +262,8 @@ function updateVoiceUi() {
 
   let text = 'Mikrofon kapalı. Sesli sohbet için başlat.';
   if (voice.active) {
-    if (!rival) text = 'Eşin odada değil.';
-    else if (!rival.voice) text = 'Mikrofonun açık. Eşinin katılmasını bekliyorsun.';
+    if (!rival) text = 'Rakibin odada değil.';
+    else if (!rival.voice) text = 'Mikrofonun açık. Rakibinin katılmasını bekliyorsun.';
     else if (connected) text = 'Sesli sohbet bağlı. 🎙️';
     else text = 'Bağlanıyor…';
     if (voice.muted) text = 'Mikrofonun sessizde.';
@@ -717,7 +717,7 @@ function renderHangmanAsk(s) {
       <span class="g-emoji">✍️</span>
       <div>
         <b>Şimdi senin sıran: bir soru sor.</b>
-        <p>Kendinle ilgili bir soru yaz ve doğru cevabını ekle. Eşin harf harf tahmin edecek.</p>
+        <p>Kendinle ilgili bir soru yaz ve doğru cevabını ekle. Rakibin harf harf tahmin edecek.</p>
       </div>
     </div>
     <div class="card">
@@ -736,7 +736,7 @@ function renderHangmanAsk(s) {
 
       <label class="field-label" for="askA">Doğru cevap</label>
       <input id="askA" type="text" maxlength="60" placeholder="Örn. Mavi" />
-      <p class="hint">Cevap 2-16 harf olmalı. Eşin 6 canla harf harf tahmin edecek.</p>
+      <p class="hint">Cevap 2-16 harf olmalı. Rakibin 6 canla harf harf tahmin edecek.</p>
       <p class="hint error" id="askError" hidden></p>
       <button type="button" class="btn btn-primary btn-block" data-action="submitAsk" style="margin-top:12px">
         Soruyu gönder 💌
@@ -779,7 +779,7 @@ function renderHangmanGuess(s) {
     ${scorebarHtml(s)}
     ${banner}
     <div class="card question-card">
-      <div class="q-owner">💗 ${esc(genitive(h.askerName))} sorusu</div>
+      <div class="q-owner">💬 ${esc(genitive(h.askerName))} sorusu</div>
       <h2 class="question-text">${esc(h.question)}</h2>
       ${hangmanMaskHtml(h.mask)}
       <div class="hm-lives">${hangmanHearts(h.lives)}<span>${h.lives} can</span></div>
@@ -820,7 +820,7 @@ function renderHangmanReveal(s) {
   const pointsText = h.points > 0 ? `+${h.points} puan` : '0 puan';
 
   const readyNote = s.readyNext
-    ? `${esc(s.rivalName || 'Eşin')} de basınca devam edilecek…`
+    ? `${esc(s.rivalName || 'Rakibin')} de basınca devam edilecek…`
     : `İkiniz de Devam’a basınca ${
         h.number >= 2 ? 'tur sonuçları gelecek' : `${h.number + 1}. soruya geçilecek`
       }.`;
@@ -829,7 +829,7 @@ function renderHangmanReveal(s) {
     ${scorebarHtml(s)}
     <div class="card question-card">
       <div class="verdict">
-        <span class="verdict-emoji">${solved ? '🎯' : '💔'}</span>
+        <span class="verdict-emoji">${solved ? '🎯' : '🤔'}</span>
         <h2>${title}</h2>
         <span class="points ${h.points > 0 ? '' : 'zero'}">${pointsText}</span>
       </div>
@@ -850,7 +850,7 @@ function renderHangmanReveal(s) {
     </div>
     <button class="btn btn-primary btn-block" data-action="continueReveal" ${
       s.readyNext ? 'disabled' : ''
-    }>${s.readyNext ? 'Eşin bekleniyor…' : 'Devam →'}</button>
+    }>${s.readyNext ? 'Rakibin bekleniyor…' : 'Devam →'}</button>
     <p class="ready-note">${readyNote}</p>
   `;
 }
@@ -865,14 +865,14 @@ function renderHangmanRoundEnd(s) {
   }));
 
   const readyBtn = s.readyNext
-    ? `<button class="btn btn-primary" disabled>Eşin bekleniyor…</button>`
+    ? `<button class="btn btn-primary" disabled>Rakibin bekleniyor…</button>`
     : `<button class="btn btn-primary" data-action="nextRound">Sonraki tur →</button>`;
 
   $('roundBody').innerHTML = `
     <div class="card" style="text-align:center;padding:20px">
       <div style="font-size:2.2rem">🎉</div>
       <h2 style="margin:0;font-size:1.3rem">Tur ${s.round} tamam!</h2>
-      <p class="hint" style="margin-top:6px">Bir soru sen, bir soru eşin. İşte sonuçlar.</p>
+      <p class="hint" style="margin-top:6px">Bir soru sen, bir soru rakibin. İşte sonuçlar.</p>
     </div>
 
     ${scoreCardsHtml({ players: playersWithRound }, true)}
@@ -883,9 +883,9 @@ function renderHangmanRoundEnd(s) {
     </div>
     <p class="ready-note">${
       s.readyNext
-        ? 'Sen hazırsın. Eşin de basınca yeni tur gelecek.'
+        ? 'Sen hazırsın. Rakibin de basınca yeni tur gelecek.'
         : s.otherReadyNext
-          ? 'Eşin hazır! Sen de “Sonraki tur”a bas.'
+          ? 'Rakibin hazır! Sen de “Sonraki tur”a bas.'
           : 'Yeni tur için ikiniz de “Sonraki tur”a basın.'
     }</p>
 
@@ -999,7 +999,7 @@ function renderQuizPlay(s) {
       <p class="hint center" style="margin:0">${
         answered
           ? `“${q.myAnswer ? 'Doğru' : 'Yanlış'}” dedin. ${
-              q.otherAnswered ? 'Eşin de cevapladı, sonuç geliyor…' : 'Eşin bekleniyor…'
+              q.otherAnswered ? 'Rakibin de cevapladı, sonuç geliyor…' : 'Rakibin bekleniyor…'
             }`
           : 'İkiniz de cevaplayınca sonuç açıklanacak.'
       }</p>
@@ -1019,7 +1019,7 @@ function renderQuizReveal(s) {
   $('playCounter').textContent = `${q.number}/${q.total}`;
 
   const readyNote = s.readyNext
-    ? `${esc(s.rivalName || 'Eşin')} de basınca devam edilecek…`
+    ? `${esc(s.rivalName || 'Rakibin')} de basınca devam edilecek…`
     : `${q.number}. ifade tamam. İkiniz de Devam’a basınca ${
         q.number >= q.total ? 'tur sonuçları gelecek' : `${q.number + 1}. ifadeye geçilecek`
       }.`;
@@ -1040,7 +1040,7 @@ function renderQuizReveal(s) {
     ${scorebarHtml(s)}
     <div class="card question-card">
       <div class="verdict">
-        <span class="verdict-emoji">${myCorrect ? '🎯' : '💔'}</span>
+        <span class="verdict-emoji">${myCorrect ? '🎯' : '🤔'}</span>
         <h2>${myCorrect ? 'Doğru bildin!' : 'Yanlış!'}</h2>
         <span class="points ${myPoints > 0 ? '' : 'zero'}">${
           myPoints > 0 ? `+${myPoints} puan` : '0 puan'
@@ -1052,7 +1052,7 @@ function renderQuizReveal(s) {
     </div>
     <button class="btn btn-primary btn-block" data-action="continueReveal" ${
       s.readyNext ? 'disabled' : ''
-    }>${s.readyNext ? 'Eşin bekleniyor…' : 'Devam →'}</button>
+    }>${s.readyNext ? 'Rakibin bekleniyor…' : 'Devam →'}</button>
     <p class="ready-note">${readyNote}</p>
   `;
 }
@@ -1066,7 +1066,7 @@ function renderQuizRoundEnd(s) {
     round: s.players[i] ? s.players[i].roundScore : 0,
   }));
   const readyBtn = s.readyNext
-    ? `<button class="btn btn-primary" disabled>Eşin bekleniyor…</button>`
+    ? `<button class="btn btn-primary" disabled>Rakibin bekleniyor…</button>`
     : `<button class="btn btn-primary" data-action="nextRound">Sonraki 10 soru →</button>`;
 
   $('roundBody').innerHTML = `
@@ -1084,9 +1084,9 @@ function renderQuizRoundEnd(s) {
     </div>
     <p class="ready-note">${
       s.readyNext
-        ? 'Sen hazırsın. Eşin de basınca yeni ifadeler gelecek.'
+        ? 'Sen hazırsın. Rakibin de basınca yeni ifadeler gelecek.'
         : s.otherReadyNext
-          ? 'Eşin hazır! Sen de “Sonraki 10 soru”ya bas.'
+          ? 'Rakibin hazır! Sen de “Sonraki 10 soru”ya bas.'
           : 'Yeni ifadeler için ikiniz de “Sonraki 10 soru”ya basın.'
     }</p>
 
@@ -1154,7 +1154,7 @@ function renderStandaloneFinal(s) {
     <div class="btn-row" style="margin-top:20px">
       <button class="btn btn-primary" data-action="playAgain" ${
         s.readyNext ? 'disabled' : ''
-      }>${s.readyNext ? 'Eşin bekleniyor…' : 'Yeniden oyna'}</button>
+      }>${s.readyNext ? 'Rakibin bekleniyor…' : 'Yeniden oyna'}</button>
       <button class="btn btn-ghost" data-action="leave">Ana sayfa</button>
     </div>
   `;
@@ -1189,7 +1189,7 @@ function renderLobby() {
 
   const waiting =
     s.players.length < 2
-      ? `<div class="player waiting">Eşin bekleniyor…</div>`
+      ? `<div class="player waiting">Rakibin bekleniyor…</div>`
       : '';
 
   $('lobbyPlayers').innerHTML = players + waiting;
@@ -1199,11 +1199,11 @@ function renderLobby() {
   $('lobbyFoot').textContent =
     s.mode === 'text'
       ? 'İkiniz de hazır olduğunuzda sorular başlıyor.'
-      : 'Eşin katılınca oyun otomatik başlıyor.';
+      : 'Rakibin katılınca oyun otomatik başlıyor.';
 }
 
 /* ------------------------------------------------------------------ */
-/*  Çiftler Kapışması                                                  */
+/*  Takımlar Kapışması                                                 */
 /* ------------------------------------------------------------------ */
 
 function routeTeam(s) {
@@ -1279,8 +1279,8 @@ function renderTeamLobby() {
       return `<div class="team-card ${t.isMine ? 'mine' : ''} ${t.complete ? 'complete' : ''}">
         <div class="team-card-head">
           <div class="team-card-title">
-            <span class="team-badge">Çift ${t.index}</span>
-            <b>${t.complete ? esc(t.name) : t.members.length ? `${esc(t.members[0].name)} + 1` : 'Boş çift'}</b>
+            <span class="team-badge">Takım ${t.index}</span>
+            <b>${t.complete ? esc(t.name) : t.members.length ? `${esc(t.members[0].name)} + 1` : 'Boş takım'}</b>
           </div>
           <span class="team-state ${t.complete ? 'ok' : ''}">${t.complete ? 'Hazır' : 'Oyuncu bekliyor'}</span>
         </div>
@@ -1296,15 +1296,15 @@ function renderTeamLobby() {
     startBtn.disabled = !s.canStart;
     startBtn.textContent = s.canStart
       ? s.teamCount === 3 && completeCount === 2
-        ? '2 çift ile başlat'
+        ? '2 takım ile başlat'
         : 'Oyunu başlat'
       : 'Oyuncular bekleniyor…';
   }
 
   $('teamStartHint').textContent = isHost
     ? s.canStart
-      ? `${completeCount} çift hazır. Başlatabilirsin.`
-      : 'En az 2 çift ve her çiftte 2 oyuncu olmalı. Davetleri gönder.'
+      ? `${completeCount} takım hazır. Başlatabilirsin.`
+      : 'En az 2 takım ve her takımda 2 oyuncu olmalı. Davetleri gönder.'
     : 'Oda sahibi başlatınca oyun başlar.';
 }
 
@@ -1322,16 +1322,16 @@ function openTeamInvite(teamIndex) {
   app.inviteTeam = index;
   const team = (s.teams || []).find((t) => t.index === index);
   $('teamInviteTitle').textContent = team && team.members.length
-    ? `${index}. çift daveti · ${team.members.map((m) => m.name).join(' & ')}`
-    : `${index}. çift daveti`;
+    ? `${index}. takım daveti · ${team.members.map((m) => m.name).join(' & ')}`
+    : `${index}. takım daveti`;
   $('teamInviteQr').src = `/qr.svg?oda=${encodeURIComponent(s.code)}&takim=${index}`;
   $('teamInviteLink').textContent = teamInviteLink(index);
   const note = $('teamInviteNote');
   if (note) {
     note.textContent =
       team && team.isMine
-        ? 'Bu bağlantıyı eşine gönder; ikinci oyuncu olarak senin çiftine katılsın.'
-        : 'İki eş de bu bağlantıyı kullanmalı. Biri ilk, diğeri ikinci oyuncu olarak aynı çifte katılır.';
+        ? 'Bu bağlantıyı takım arkadaşına gönder; ikinci oyuncu olarak senin takımına katılsın.'
+        : 'İki takım arkadaşı da bu bağlantıyı kullanmalı. Biri ilk, diğeri ikinci oyuncu olarak aynı takıma katılır.';
   }
   $('teamInviteModal').hidden = false;
 }
@@ -1339,10 +1339,10 @@ function openTeamInvite(teamIndex) {
 async function shareTeamInvite() {
   const link = teamInviteLink(app.inviteTeam);
   if (!link) return;
-  const text = `Eşimi Tanıyorum — ${app.inviteTeam}. çift daveti 💞\nAynı bağlantıyla ikiniz de katılın:`;
+  const text = `Seni Tanıyorum — ${app.inviteTeam}. takım daveti ✨\nAynı bağlantıyla ikiniz de katılın:`;
   if (navigator.share) {
     try {
-      await navigator.share({ title: 'Çiftler Kapışması', text, url: link });
+      await navigator.share({ title: 'Takımlar Kapışması', text, url: link });
       return;
     } catch (_error) {
       /* kullanıcı iptal etti */
@@ -1360,7 +1360,7 @@ async function copyTeamInvite() {
   if (!link) return;
   try {
     await navigator.clipboard.writeText(link);
-    toast('Çift daveti kopyalandı 💌');
+    toast('Takım daveti kopyalandı ✨');
   } catch {
     const area = document.createElement('textarea');
     area.value = link;
@@ -1370,7 +1370,7 @@ async function copyTeamInvite() {
     area.select();
     document.execCommand('copy');
     area.remove();
-    toast('Çift daveti kopyalandı 💌');
+    toast('Takım daveti kopyalandı ✨');
   }
 }
 
@@ -1378,11 +1378,11 @@ function renderTeamPlay(s) {
   const q = s.teamQuestion;
   if (!q) return;
 
-  $('playTitle').textContent = 'Çiftler Kapışması';
+  $('playTitle').textContent = 'Takımlar Kapışması';
   $('playCounter').textContent = `Soru ${q.number}/${q.total}`;
 
   const myTeam = (s.teams || []).find((t) => t.isMine);
-  const partner = q.partnerName || 'Eşin';
+  const partner = q.partnerName || 'Takım arkadaşın';
   const answered = q.myAnswer !== null && q.myAnswer !== undefined;
   const key = `team:${s.round}:${q.number}:${
     answered ? `a:${q.partnerAnswered}:${q.answeredCount}` : 'input'
@@ -1397,7 +1397,7 @@ function renderTeamPlay(s) {
       <div class="q-owner">${esc(q.category || 'Birlikte')}</div>
       <h2 class="question-text">${esc(q.text)}</h2>
       <p class="q-sub">${
-        myTeam && myTeam.name ? esc(myTeam.name) : 'Çiftin'
+        myTeam && myTeam.name ? esc(myTeam.name) : 'Takımın'
       } olarak ikiniz de aynı cevabı vermeye çalışın.</p>
     </div>
     <div class="card guess-box">
@@ -1407,15 +1407,15 @@ function renderTeamPlay(s) {
               <div class="answer-chip"><span>Senin cevabın</span><b>${esc(q.myAnswer)}</b></div>
               <p class="team-wait">${
                 q.partnerAnswered
-                  ? `Eşin ${esc(partner)} de cevapladı.`
-                  : `Eşin ${esc(partner)} bekleniyor…`
+                  ? `Takım arkadaşın ${esc(partner)} de cevapladı.`
+                  : `Takım arkadaşın ${esc(partner)} bekleniyor…`
               }</p>
-              <p class="hint">${q.answeredCount}/${q.playerCount} oyuncu cevapladı. Tüm çiftler bitince sonuç açıklanacak.</p>
+              <p class="hint">${q.answeredCount}/${q.playerCount} oyuncu cevapladı. Tüm takımlar bitince sonuç açıklanacak.</p>
             </div>`
           : `<label class="field-label" for="teamAnswer">Cevabın</label>
              <input id="teamAnswer" type="text" class="input" maxlength="60" placeholder="Kısa bir cevap yaz…" autocomplete="off" />
-             <button type="button" class="btn btn-primary btn-block" data-action="teamAnswer">Cevapla 💘</button>
-             <p class="hint center">Eşinle aynı cevabı vermelisin. Kısa yaz.</p>`
+             <button type="button" class="btn btn-primary btn-block" data-action="teamAnswer">Cevapla ✨</button>
+             <p class="hint center">Takım arkadaşınla aynı cevabı vermelisin. Kısa yaz.</p>`
       }
     </div>
     ${s.isHost ? '<button type="button" class="link-btn team-end-link" data-action="teamEnd">Oyunu bitir</button>' : ''}
@@ -1445,15 +1445,15 @@ function renderTeamReveal(s) {
   const myResult = myTeam ? results.find((r) => r.team === myTeam.index) : null;
   const matched = Boolean(myResult && myResult.matched);
 
-  $('playTitle').textContent = 'Çiftler Kapışması';
+  $('playTitle').textContent = 'Takımlar Kapışması';
   $('playCounter').textContent = `Soru ${q.number}/${q.total}`;
 
   $('playBody').innerHTML = `
     ${teamScoresHtml(s)}
     <div class="card question-card">
       <div class="verdict">
-        <span class="verdict-emoji">${matched ? '🎯' : '💔'}</span>
-        <h2>${matched ? 'Eşleştiniz!' : 'Bu kez olmadı'}</h2>
+        <span class="verdict-emoji">${matched ? '🎯' : '🤔'}</span>
+        <h2>${matched ? 'Aynı cevabı verdiniz!' : 'Bu kez olmadı'}</h2>
         <p class="q-sub">${esc(q.text)}</p>
       </div>
       <div class="team-results">
@@ -1464,7 +1464,7 @@ function renderTeamReveal(s) {
             }">
               <div class="tr-head">
                 <b>${esc(r.name)}</b>
-                <span class="tr-badge">${r.matched ? `Eşleşti +${r.points}` : 'Eşleşmedi'}</span>
+                <span class="tr-badge">${r.matched ? `Aynı cevap +${r.points}` : 'Farklı cevaplar'}</span>
               </div>
               <div class="tr-answers">
                 ${[0, 1]
@@ -1564,7 +1564,7 @@ function renderTeamFinal(s) {
       <span class="trophy">${winner ? '🏆' : '🤝'}</span>
       <h2>${winner ? `${esc(winner)} kazandı!` : 'Berabere!'}</h2>
       <p class="winner-sub">${
-        winner ? 'En çok eşleşen çift.' : 'Çiftler aynı puanda bitirdi.'
+        winner ? 'En çok aynı cevabı veren takım.' : 'Takımlar aynı puanda bitirdi.'
       }</p>
     </div>
     ${teamScoresGridHtml(teams, best)}
@@ -1637,7 +1637,7 @@ function maybeShowIntro(s) {
   }
   if (seen) return;
   const rival = s.players.find((p) => !p.isMe);
-  $('introNames').textContent = `${s.me.name} 💞 ${rival ? rival.name : 'Eşin'}`;
+  $('introNames').textContent = `${s.me.name} ✨ ${rival ? rival.name : 'Rakibin'}`;
   $('introModal').hidden = false;
 }
 
@@ -1710,10 +1710,10 @@ function renderSetup() {
   const mode = modeOf(s.mode);
   const guideText =
     s.mode === 'hangman'
-      ? 'Kendinle ilgili bir soru ve 2-16 harflik bir cevap yaz. Eşin harf harf tahmin edecek.'
+      ? 'Kendinle ilgili bir soru ve 2-16 harflik bir cevap yaz. Rakibin harf harf tahmin edecek.'
       : s.mode === 'truefalse'
         ? 'Kendinle ilgili bir soru ve doğru cevabını yaz. Oyun sırasında cevabın “doğru mu, yanlış mı?” diye sorulacak.'
-        : 'Kendinle ilgili bir soru ve doğru cevabını yaz. Eşin cevabı yazarak tahmin edecek.';
+        : 'Kendinle ilgili bir soru ve doğru cevabını yaz. Rakibin cevabı yazarak tahmin edecek.';
   const answerHint =
     s.mode === 'hangman'
       ? 'Cevaplar 2-16 harf olmalı. Boşluk ve noktalama korunur.'
@@ -1854,12 +1854,12 @@ function renderSetupWaiting(s) {
 
   $('setupBody').innerHTML = `
     <div class="card waiting-card">
-      <span class="big">💞</span>
+      <span class="big">✨</span>
       <h3>Soruların hazır! ✅</h3>
       <p>${
         rivalReady
           ? 'İkiniz de hazırsınız. Oyun birazdan başlıyor…'
-          : `${esc(rival ? rival.name : 'Eşin')} henüz yazıyor. O da gönderince oyun otomatik başlayacak.`
+          : `${esc(rival ? rival.name : 'Rakibin')} henüz yazıyor. O da gönderince oyun otomatik başlayacak.`
       }</p>
       <div class="mini-players">
         <div class="mini-player ready">
@@ -2053,9 +2053,9 @@ function timerHtml(seconds) {
         <svg viewBox="0 0 48 48" aria-hidden="true">
           <defs>
             <linearGradient id="timerGradient" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#63e2c0"></stop>
-              <stop offset="0.55" stop-color="#ffd166"></stop>
-              <stop offset="1" stop-color="#ff5f8f"></stop>
+              <stop offset="0" stop-color="#34d399"></stop>
+              <stop offset="0.55" stop-color="#22d3ee"></stop>
+              <stop offset="1" stop-color="#8b5cf6"></stop>
             </linearGradient>
           </defs>
           <circle class="timer-ring-track" cx="24" cy="24" r="20"></circle>
@@ -2096,7 +2096,7 @@ function showSetupTransition(savedNumber) {
 
 function hangmanHearts(lives) {
   const total = 6;
-  return Array.from({ length: total }, (_, i) => `<span class="${i < lives ? '' : 'off'}">❤️</span>`).join('');
+  return Array.from({ length: total }, (_, i) => `<span class="${i < lives ? '' : 'off'}">●</span>`).join('');
 }
 
 function hangmanBoardHtml(q, interactive) {
@@ -2165,8 +2165,8 @@ function renderPlay() {
   }
 
   const ownerLine = q.isMine
-    ? `<div class="q-owner">💗 Senin sorun</div>`
-    : `<div class="q-owner">💗 ${esc(genitive(q.ownerName))} sorusu</div>`;
+    ? `<div class="q-owner">💬 Senin sorun</div>`
+    : `<div class="q-owner">💬 ${esc(genitive(q.ownerName))} sorusu</div>`;
 
   const isTrueFalse = q.mode === 'truefalse' && Boolean(q.claim);
   const claimHtml = isTrueFalse
@@ -2234,7 +2234,7 @@ function renderPlay() {
             : `<div class="card guess-box">
                  <input id="guessInput" class="guess-input" type="text" maxlength="60"
                         placeholder="Tahminini yaz…" autocomplete="off" enterkeyhint="send" />
-                 <button class="btn btn-primary btn-block" id="guessBtn">Cevapla 💘</button>
+                 <button class="btn btn-primary btn-block" id="guessBtn">Cevapla ✨</button>
                  <p class="hint center" style="margin:0">Tahminin ne kadar yakınsa puan o kadar yüksek.</p>
                </div>`
       }
@@ -2397,7 +2397,7 @@ function renderReveal() {
   const isHangman = q.mode === 'hangman';
   const isTrueFalse = q.mode === 'truefalse' && Boolean(q.claim);
 
-  let emoji = '💔';
+  let emoji = '🤔';
   let title = '';
   if (q.timedOut) {
     emoji = '⏰';
@@ -2413,7 +2413,7 @@ function renderReveal() {
     }
   } else if (isTrueFalse) {
     const correct = q.points > 0;
-    emoji = correct ? '🎯' : '💔';
+    emoji = correct ? '🎯' : '🤔';
     title = correct
       ? q.isMine
         ? `${q.guesserName} doğru bildi!`
@@ -2428,7 +2428,7 @@ function renderReveal() {
     emoji = '✨';
     title = q.isMine ? `${q.guesserName} yaklaştı` : 'Yaklaştın!';
   } else {
-    emoji = '💔';
+    emoji = '🤔';
     title = q.isMine ? `${q.guesserName} bilemedi` : 'Bilemedin';
   }
 
@@ -2453,7 +2453,7 @@ function renderReveal() {
   const afterText =
     q.number >= q.total ? 'tur sonuçları gelecek' : `${q.number + 1}. soruya geçilecek`;
   const readyNote = s.readyNext
-    ? `${esc(s.rivalName || 'Eşin')} de basınca devam edilecek…`
+    ? `${esc(s.rivalName || 'Rakibin')} de basınca devam edilecek…`
     : `${q.number}. soru tamamlandı. İkiniz de Devam’a basınca ${afterText}.`;
 
   const hangmanNote = isHangman
@@ -2491,7 +2491,7 @@ function renderReveal() {
     </div>
     <button class="btn btn-primary btn-block" data-action="continueReveal" ${
       s.readyNext ? 'disabled' : ''
-    }>${s.readyNext ? 'Eşin bekleniyor…' : 'Devam →'}</button>
+    }>${s.readyNext ? 'Rakibin bekleniyor…' : 'Devam →'}</button>
     <p class="ready-note">${readyNote}</p>
   `;
 }
@@ -2556,7 +2556,7 @@ function renderRoundEnd() {
   }));
 
   const readyBtn = s.readyNext
-    ? `<button class="btn btn-primary" disabled>Eşin bekleniyor…</button>`
+    ? `<button class="btn btn-primary" disabled>Rakibin bekleniyor…</button>`
     : `<button class="btn btn-primary" data-action="nextRound">Sonraki 5 soru →</button>`;
 
   $('roundBody').innerHTML = `
@@ -2574,9 +2574,9 @@ function renderRoundEnd() {
     </div>
     <p class="ready-note">${
       s.readyNext
-        ? 'Sen hazırsın. Eşin de basınca yeni soru ekranı açılacak.'
+        ? 'Sen hazırsın. Rakibin de basınca yeni soru ekranı açılacak.'
         : s.otherReadyNext
-          ? 'Eşin hazır! Sen de “Sonraki 5 soru”ya bas.'
+          ? 'Rakibin hazır! Sen de “Sonraki 5 soru”ya bas.'
           : 'Yeni 5 soru için ikiniz de “Sonraki 5 soru”ya basın.'
     }</p>
 
@@ -2644,7 +2644,7 @@ function renderFinal() {
     <div class="btn-row" style="margin-top:20px">
       <button class="btn btn-primary" data-action="playAgain" ${
         s.readyNext ? 'disabled' : ''
-      }>${s.readyNext ? 'Eşin bekleniyor…' : 'Yeniden oyna'}</button>
+      }>${s.readyNext ? 'Rakibin bekleniyor…' : 'Yeniden oyna'}</button>
       <button class="btn btn-ghost" data-action="leave">Ana sayfa</button>
     </div>
   `;
@@ -2986,10 +2986,10 @@ $('shareBtn').addEventListener('click', async () => {
   if (!s) return;
   const code = s.code;
   const url = `${(app.baseUrl || location.origin).replace(/\/$/, '')}/?oda=${code}`;
-  const text = `Eşimi Tanıyorum 💞 Oda kodum: ${code}\n${url}`;
+  const text = `Seni Tanıyorum ✨ Oda kodum: ${code}\n${url}`;
   if (navigator.share) {
     try {
-      await navigator.share({ title: 'Eşimi Tanıyorum', text, url });
+      await navigator.share({ title: 'Seni Tanıyorum', text, url });
       return;
     } catch {
       /* kullanıcı vazgeçti */
@@ -3012,10 +3012,10 @@ $('teamShareBtn').addEventListener('click', async () => {
   const s = app.state;
   if (!s) return;
   const url = `${(app.baseUrl || location.origin).replace(/\/$/, '')}/?oda=${s.code}`;
-  const text = `Eşimi Tanıyorum 💞 Çiftler Kapışması odam: ${s.code}\n${url}`;
+  const text = `Seni Tanıyorum ✨ Takımlar Kapışması odam: ${s.code}\n${url}`;
   if (navigator.share) {
     try {
-      await navigator.share({ title: 'Çiftler Kapışması', text, url });
+      await navigator.share({ title: 'Takımlar Kapışması', text, url });
       return;
     } catch {
       /* kullanıcı vazgeçti */
@@ -3064,7 +3064,7 @@ $('introModal').addEventListener('click', (e) => {
     const note = $('joinTeamNote');
     if (note) {
       note.hidden = false;
-      note.textContent = `${team}. çift davetiyle geliyorsun. İsmini yazıp katıl.`;
+      note.textContent = `${team}. takım davetiyle geliyorsun. İsmini yazıp katıl.`;
     }
   }
 
