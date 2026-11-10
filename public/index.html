@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0f1f" />
-  <meta name="description" content="Seni Tanıyorum — arkadaşlar ve çiftler için iki telefonla oynanan; soru-cevap, takımlar ve UNO içeren bilgi ve tanıma yarışması." />
+  <meta name="description" content="Seni Tanıyorum - arkadaşlar ve çiftler için 2-4 telefonla oynanan; soru-cevap, takımlar ve 500 puanlık UNO içeren bilgi ve tanıma yarışması." />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Seni Tanıyorum" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -45,7 +45,7 @@
         <h1>Birbirinizi<br /><span>ne kadar iyi</span><br />tanıyorsunuz?</h1>
         <p class="home-sub">Beş mod, tek oda — soru-cevap, adam asmaca, doğru/yanlış, takımlar kapışması ve UNO. İster yazarak ister kart oynayarak.</p>
         <div class="hero-meta">
-          <span><i class="meta-dot"></i>2 telefon</span>
+          <span><i class="meta-dot"></i>2-4 telefon</span>
           <span><i class="meta-dot"></i>gerçek zamanlı</span>
           <span><i class="meta-dot"></i>5 oyun modu</span>
         </div>
@@ -124,6 +124,12 @@
           <button type="button" class="team-count on" data-action="pickTeams" data-teams="2">2 takım · 4 kişi</button>
           <button type="button" class="team-count" data-action="pickTeams" data-teams="3">3 takım · 6 kişi</button>
         </div>
+        <div class="team-count-row" id="unoCountRow" hidden>
+          <span class="team-count-label">Kaç oyuncu?</span>
+          <button type="button" class="team-count on" data-action="pickUnoPlayers" data-players="2">2 oyuncu</button>
+          <button type="button" class="team-count" data-action="pickUnoPlayers" data-players="3">3 oyuncu</button>
+          <button type="button" class="team-count" data-action="pickUnoPlayers" data-players="4">4 oyuncu</button>
+        </div>
       </section>
 
       <section class="card setup-card">
@@ -155,7 +161,7 @@
 
       <footer class="home-footer">
         <span class="status-dot"></span>
-        <span>İki telefon · Gerçek zamanlı · Sesli sohbet</span>
+        <span>2-4 telefon · Gerçek zamanlı · Sesli sohbet</span>
       </footer>
     </section>
 
@@ -194,6 +200,8 @@
       </div>
 
       <div class="players" id="lobbyPlayers"></div>
+
+      <button id="lobbyStartBtn" type="button" class="btn btn-primary btn-block" data-action="unoStart" hidden>Oyunu başlat</button>
 
       <p class="footnote center" id="lobbyFoot">İkiniz de hazır olduğunuzda sorular başlıyor.</p>
     </section>
@@ -299,7 +307,7 @@
       </div>
       <ol class="steps">
         <li><b>Mod seç ve oda kur.</b> Soru-Cevap, Adam Asmaca, Doğru/Yanlış, Takımlar Kapışması veya UNO. Takma adını yaz, oda kodunu arkadaşınla paylaş.</li>
-        <li><b>Arkadaşın katılsın.</b> Kodu kendi telefonuna girsin; aynı Wi-Fi’de ya da internette olabilirsiniz.</li>
+        <li><b>Oyuncular katılsın.</b> Kodu kendi telefonuna girsin; aynı Wi-Fi’de ya da internette olabilirsiniz. UNO’da 2-4 oyuncu seçebilirsin; oda dolunca oyun otomatik başlar, oda sahibi daha erken de başlatabilir.</li>
         <li><b>5 soru hazırla.</b> Soru-Cevap’ta kendinle ilgili 5 soru ve cevabını yaz. 10 kategoride 200+ hazır soru var; “Tümünü gör” ile hepsine bakabilir, arayabilirsin.</li>
         <li><b>Moda göre oyna.</b> Soru-Cevap’ta cevabı yazarsın, Adam Asmaca’da harf seçersin, Doğru/Yanlış’ta karar verirsin, UNO’da renk/sayı eşleştirip elini bitirirsin.</li>
         <li><b>Takımlar Kapışması.</b> 2 veya 3 takım aynı odada yarışır. Her takıma ayrı davet bağlantısı gönder; iki takım arkadaşı da aynı bağlantıyla katılır. Sistem ortak geçmiş soruları sorar; takım arkadaşları aynı cevabı verirse takım +10 puan kazanır.</li>
@@ -307,7 +315,7 @@
         <li><b>Sesli sohbet (isteğe bağlı).</b> Sağ alttaki 🎙️ düğmesinden mikrofonu aç; arkadaşın da açınca konuşabilirsiniz.</li>
       </ol>
       <p class="hint">İpucu: Cevapları kısa tut (ör. “Adana kebap”, “mavi”). Böylece aynı cevabı vermeniz kolay olur.</p>
-      <p class="hint">UNO’da ilk elini bitiren kazanır; joker kartta renk seçilir. UNO otomatik duyurulur; +4 meydan okuması yoktur.</p>
+      <p class="hint">UNO’da 2-4 oyuncu oynar; eli bitiren, rakiplerin elindeki kartların puanını alır. 500 puana ilk ulaşan maçı kazanır. Joker kartta renk seçilir; UNO otomatik duyurulur ve +4 meydan okuması yoktur.</p>
       <button id="helpOk" class="btn btn-primary">Anladım</button>
     </div>
   </div>

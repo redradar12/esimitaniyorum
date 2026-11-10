@@ -56,7 +56,7 @@ const MODES = {
     emoji: '🃏',
     label: 'UNO',
     short: 'UNO',
-    desc: '2 kişi: klasik UNO; ilk elini bitiren kazanır.',
+    desc: '2-4 kişi: klasik UNO; 500 puana ulaşan kazanır.',
   },
 };
 
@@ -209,6 +209,7 @@ const app = {
   transitionTimer: null,
   homeMode: 'text',
   teamCount: 2,
+  unoPlayers: 2,
   baseUrl: location.origin,
   joinTeam: 0,
   inviteCode: '',
@@ -240,7 +241,8 @@ function voiceSupported() {
 
 function updateVoiceUi() {
   const s = app.state;
-  const inRoom = Boolean(s && s.code && s.mode !== 'team');
+  const manyUno = Boolean(s && s.mode === 'uno' && s.players && s.players.length > 2);
+  const inRoom = Boolean(s && s.code && s.mode !== 'team' && !manyUno);
   document.body.classList.toggle('in-room', inRoom);
 
   const fab = $('voiceFab');
@@ -1196,19 +1198,37 @@ function renderLobby() {
     )
     .join('');
 
+  const capacity = s.mode === 'uno' ? s.maxPlayers || 4 : 2;
   const waiting =
-    s.players.length < 2
-      ? `<div class="player waiting">Rakibin bekleniyor…</div>`
+    s.players.length < capacity
+      ? `<div class="player waiting">${
+          s.mode === 'uno' ? 'Diğer oyuncular bekleniyor…' : 'Rakibin bekleniyor…'
+        }</div>`
       : '';
 
   $('lobbyPlayers').innerHTML = players + waiting;
 
+  const startBtn = $('lobbyStartBtn');
+  if (startBtn) {
+    startBtn.hidden = !(s.mode === 'uno' && s.isHost);
+    startBtn.disabled = s.players.length < 2;
+    startBtn.textContent = `Oyunu başlat (${s.players.length}/${capacity})`;
+  }
+
   $('qrImg').src = `/qr.svg?oda=${encodeURIComponent(s.code)}`;
   $('shareBtn').textContent = navigator.share ? 'Paylaş' : 'WhatsApp';
   $('lobbyFoot').textContent =
-    s.mode === 'text'
-      ? 'İkiniz de hazır olduğunuzda sorular başlıyor.'
-      : 'Rakibin katılınca oyun otomatik başlıyor.';
+    s.mode === 'uno'
+      ? `${s.players.length}/${capacity} oyuncu hazır. ${
+          s.isHost
+            ? s.players.length >= 2
+              ? 'Başlatabilirsin.'
+              : 'En az 2 oyuncu gerekli.'
+            : 'Oda sahibi başlatabilir.'
+        }`
+      : s.mode === 'text'
+        ? 'İkiniz de hazır olduğunuzda sorular başlıyor.'
+        : 'Rakibin katılınca oyun otomatik başlıyor.';
 }
 
 /* ------------------------------------------------------------------ */
@@ -1629,6 +1649,11 @@ function routeUno(s) {
     renderUnoFinal(s);
     return;
   }
+  if (s.phase === 'unoRoundEnd') {
+    showScreen('roundEnd');
+    renderUnoRoundEnd(s);
+    return;
+  }
   showScreen('play');
   renderUno(s);
 }
@@ -1692,8 +1717,9 @@ function renderUno(s) {
   const u = s.uno;
   if (!u) return;
 
+  const myScore = u.players.find((player) => player.isMe)?.score || 0;
   $('playTitle').textContent = 'UNO';
-  $('playCounter').textContent = `${u.myCount} kart`;
+  $('playCounter').textContent = `${u.myCount} kart · ${myScore} p`;
 
   const playable = new Set(u.playableIds || []);
   const status = u.pendingColor
@@ -1719,19 +1745,22 @@ function renderUno(s) {
     .map((line) => `<li>${esc(line)}</li>`)
     .join('');
 
+  const playerStrip = u.players
+    .map(
+      (player) => `<div class="uno-player-chip ${player.isMe ? 'me' : ''} ${
+        player.current ? 'turn' : ''
+      }">
+        <span class="uno-chip-avatar">${esc(initial(player.name))}</span>
+        <span class="uno-chip-name">${player.isMe ? 'Sen' : esc(player.name)}</span>
+        <span class="uno-chip-stats"><b>${player.count}</b> kart · ${player.score} p</span>
+        ${player.count === 1 ? '<span class="uno-badge">UNO!</span>' : ''}
+      </div>`
+    )
+    .join('');
+
   $('playBody').innerHTML = `
     <div class="uno-board">
-      <div class="uno-opponent">
-        <div class="uno-player">
-          <div class="avatar alt">${esc(initial(u.opponentName || '?'))}</div>
-          <div class="uno-player-meta">
-            <b>${esc(u.opponentName || 'Rakibin')}</b>
-            <span>${u.opponentCount} kart</span>
-          </div>
-          ${u.opponentCount === 1 ? '<span class="uno-badge">UNO!</span>' : ''}
-        </div>
-        <div class="uno-mini-hand">${unoMiniBacks(u.opponentCount)}</div>
-      </div>
+      <div class="uno-players">${playerStrip}</div>
 
       <div class="uno-table">
         <button type="button" class="uno-draw" data-action="unoDraw" ${u.myTurn ? '' : 'disabled'}>
@@ -1745,6 +1774,13 @@ function renderUno(s) {
             ${u.colorName || 'Renk seç'}
           </span>
         </div>
+        ${
+          u.players.length > 2
+            ? `<span class="uno-direction" title="Oyun yönü">${
+                u.direction === 1 ? '↻' : '↺'
+              }</span>`
+            : ''
+        }
       </div>
 
       <div class="uno-status">
@@ -1754,16 +1790,11 @@ function renderUno(s) {
 
       ${log ? `<ul class="uno-log">${log}</ul>` : ''}
 
-      <div class="uno-me">
-        <div class="uno-player">
-          <div class="avatar">${esc(initial(s.me.name))}</div>
-          <div class="uno-player-meta">
-            <b>Sen</b>
-            <span>${u.myCount} kart</span>
-          </div>
-          ${u.myCount === 1 ? '<span class="uno-badge">UNO!</span>' : ''}
-        </div>
-        <span class="uno-hand-hint">${u.myTurn ? 'Kart seç veya desteden çek' : 'Sıranı bekle'}</span>
+      <div class="uno-hand-head">
+        <span>Elin · ${u.myCount} kart</span>
+        <span class="uno-hand-hint">${
+          u.myTurn ? 'Kart seç veya desteden çek' : 'Sıranı bekle'
+        }</span>
       </div>
 
       <div class="uno-hand">${hand}</div>
@@ -1771,6 +1802,48 @@ function renderUno(s) {
   `;
 
   $('unoColorModal').hidden = !u.colorChooser;
+  updateVoiceUi();
+}
+
+function unoScoreGridHtml(players) {
+  return `<div class="uno-score-grid">${players
+    .map(
+      (player) => `<div class="uno-score-chip ${player.isMe ? 'me' : ''} ${
+        player.score >= 500 ? 'win' : ''
+      }">
+        <span>${player.isMe ? 'Sen' : esc(player.name)}</span>
+        <b>${player.score}</b>
+        <small>puan</small>
+      </div>`
+    )
+    .join('')}</div>`;
+}
+
+function renderUnoRoundEnd(s) {
+  const u = s.uno;
+  if (!u) return;
+  const winner = u.players[u.handWinner] || null;
+  const logs = (u.log || [])
+    .slice(-4)
+    .map((line) => `<li>${esc(line)}</li>`)
+    .join('');
+
+  $('roundTitle').textContent = `${u.handNumber}. el bitti`;
+  $('roundBody').innerHTML = `
+    <div class="card round-summary">
+      <span class="rs-emoji">🏁</span>
+      <h2>${winner ? `${esc(winner.name)} eli bitirdi!` : 'El bitti'}</h2>
+      <p class="muted">+${u.handPoints} puan · 500 puana ulaşan kazanır</p>
+    </div>
+    ${unoScoreGridHtml(u.players)}
+    ${logs ? `<div class="card"><div class="section-title">Son hamleler</div><ul class="uno-log">${logs}</ul></div>` : ''}
+    <div class="btn-row">
+      <button type="button" class="btn btn-primary" data-action="unoNextHand">Sonraki el</button>
+      <button type="button" class="btn btn-ghost" data-action="leave">Ana sayfa</button>
+    </div>
+    <p class="ready-note">Yeni el, eli kazanan oyuncudan başlar.</p>
+  `;
+  $('unoColorModal').hidden = true;
   updateVoiceUi();
 }
 
@@ -1787,21 +1860,16 @@ function renderUnoFinal(s) {
     <div class="card winner-card">
       <span class="trophy">🏆</span>
       <h2>${esc(r.winner)} kazandı!</h2>
-      <p class="winner-sub">İlk elini bitiren oyuncu.</p>
+      <p class="winner-sub">500 puana ulaşan oyuncu.</p>
     </div>
 
-    <div class="uno-final-score">
-      <div class="uno-final-player win">
-        <span>${esc(r.winner)}</span>
-        <b>0</b>
-        <small>kart</small>
-      </div>
-      <div class="uno-final-player">
-        <span>${esc(r.loser)}</span>
-        <b>${r.loserCards}</b>
-        <small>kart</small>
-      </div>
-    </div>
+    ${unoScoreGridHtml(
+      (r.scores || []).map((player) => ({
+        name: player.name,
+        score: player.score,
+        isMe: player.id === s.me.id,
+      }))
+    )}
 
     ${logs ? `<div class="card"><div class="section-title">Son hamleler</div><ul class="uno-log">${logs}</ul></div>` : ''}
 
@@ -2932,22 +3000,40 @@ document.addEventListener('click', (event) => {
       if (selected) selected.textContent = modeOf(app.homeMode).short;
       const teamRow = $('teamCountRow');
       if (teamRow) teamRow.hidden = app.homeMode !== 'team';
+      const unoRow = $('unoCountRow');
+      if (unoRow) unoRow.hidden = app.homeMode !== 'uno';
       const badge = $('createPlayersBadge');
       if (badge) {
         badge.textContent =
-          app.homeMode === 'team' ? `${app.teamCount * 2} kişi` : '2 kişi';
+          app.homeMode === 'team'
+            ? `${app.teamCount * 2} kişi`
+            : app.homeMode === 'uno'
+              ? `${app.unoPlayers} kişi`
+              : '2 kişi';
       }
       break;
     case 'pickTeams':
       app.teamCount = Number(btn.dataset.teams) === 3 ? 3 : 2;
       document
-        .querySelectorAll('.team-count')
+        .querySelectorAll('#teamCountRow .team-count')
         .forEach((chip) =>
           chip.classList.toggle('on', Number(chip.dataset.teams) === app.teamCount)
         );
       {
         const badge = $('createPlayersBadge');
         if (badge) badge.textContent = `${app.teamCount * 2} kişi`;
+      }
+      break;
+    case 'pickUnoPlayers':
+      app.unoPlayers = Math.min(4, Math.max(2, Number(btn.dataset.players) || 2));
+      document
+        .querySelectorAll('#unoCountRow .team-count')
+        .forEach((chip) =>
+          chip.classList.toggle('on', Number(chip.dataset.players) === app.unoPlayers)
+        );
+      {
+        const badge = $('createPlayersBadge');
+        if (badge) badge.textContent = `${app.unoPlayers} kişi`;
       }
       break;
     case 'teamStart':
@@ -2990,6 +3076,14 @@ document.addEventListener('click', (event) => {
       if (!app.state || app.state.mode !== 'uno' || app.state.phase !== 'play') break;
       socket.emit('uno_play', { cardId: btn.dataset.card });
       btn.disabled = true;
+      break;
+    case 'unoStart':
+      socket.emit('uno_start');
+      break;
+    case 'unoNextHand':
+      btn.disabled = true;
+      btn.textContent = 'Dağıtılıyor…';
+      socket.emit('uno_next_hand');
       break;
     case 'unoDraw':
       socket.emit('uno_draw');
@@ -3150,7 +3244,12 @@ $('createBtn').addEventListener('click', () => {
     toast('Sunucuya bağlanılamadı. İnternetini kontrol et.');
     return;
   }
-  socket.emit('create_room', { name, mode: app.homeMode, teams: app.teamCount });
+  socket.emit('create_room', {
+    name,
+    mode: app.homeMode,
+    teams: app.teamCount,
+    players: app.unoPlayers,
+  });
 });
 
 $('joinBtn').addEventListener('click', () => {
@@ -3306,6 +3405,8 @@ $('introModal').addEventListener('click', (e) => {
   if (selected) selected.textContent = modeOf(app.homeMode).short;
   const teamRow = $('teamCountRow');
   if (teamRow) teamRow.hidden = app.homeMode !== 'team';
+  const unoRow = $('unoCountRow');
+  if (unoRow) unoRow.hidden = app.homeMode !== 'uno';
 
   fetch('/bilgi')
     .then((response) => response.json())

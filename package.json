@@ -2,7 +2,7 @@
   "name": "esimi-taniyorum",
   "version": "1.0.0",
   "private": true,
-  "description": "Seni Tanıyorum - arkadaşlar ve çiftler için soru-cevap, takımlar ve UNO içeren iki telefonla oynanan oyun",
+  "description": "Seni Tanıyorum - arkadaşlar ve çiftler için soru-cevap, takımlar ve 500 puanlık UNO içeren, 2-4 telefonla oynanan oyun",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
