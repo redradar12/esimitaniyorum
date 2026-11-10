@@ -60,6 +60,70 @@ const MODES = {
   },
 };
 
+const MODE_HELP = {
+  text: {
+    emoji: '⌨️',
+    title: 'Soru-Cevap',
+    meta: '2 oyuncu · 10 soru / tur',
+    intro: 'Birbirinizi ne kadar iyi tanıdığınızı yazılı cevaplarla test edin.',
+    points: [
+      'Her oyuncu kendisi hakkında 5 soru ve doğru cevabını yazar.',
+      'Sırayla karşındakinin sorularına cevap verirsin.',
+      'Tam isabet 10, cevabı kapsayan tahmin 8, kelime eşleşmesi 6 puan.',
+      '10 soruluk turlar biter; yeni turda yeniden 5 soru hazırlanır.',
+    ],
+  },
+  hangman: {
+    emoji: '🔤',
+    title: 'Adam Asmaca',
+    meta: '2 oyuncu · 2 soru / tur · 6 can',
+    intro: 'Sırayla birbirinize soru sorun, cevabı harf harf bulun.',
+    points: [
+      'Soran oyuncu kendisiyle ilgili bir soru ve 2-16 harflik cevap yazar.',
+      'Tahmin eden oyuncu 6 canla harf seçer; yanlış harf bir can götürür.',
+      'Doğru harf +5 puan, cevabı tamamen bitiren +10 puan kazanır.',
+      'Bir turda bir sen, bir rakibin sorar; sonra roller değişir.',
+    ],
+  },
+  truefalse: {
+    emoji: '✅',
+    title: 'Doğru mu Yanlış mı?',
+    meta: '2 oyuncu · 10 ifade / tur · 15 saniye',
+    intro: 'Sistemin sorduğu ifadelerin doğru mu yanlış mı olduğunu birlikte tahmin edin.',
+    points: [
+      'Her ifade için ikiniz de aynı anda Doğru veya Yanlış seçersiniz.',
+      'Doğru cevap 10 puandır; ikiniz de doğruysa ilk cevaplayan +2 kazanır.',
+      'Yanlış veya boş cevap 0 puandır; cevap süresi 15 saniyedir.',
+      '10 ifade tamamlanınca tur sonuçları ve ardından yeni tur gelir.',
+    ],
+  },
+  team: {
+    emoji: '🏆',
+    title: 'Takımlar Kapışması',
+    meta: '2-3 takım · 4-6 oyuncu · 10 soru / tur',
+    intro: 'Takım arkadaşlarınızla aynı cevabı vererek puan toplayın.',
+    points: [
+      'Her takım 2 oyuncudan oluşur; 2 veya 3 takım aynı odada yarışır.',
+      'Sistem ortak bir soru sorar; takım arkadaşları ayrı ayrı cevap verir.',
+      'İki arkadaşın cevabı aynıysa takım +10 puan kazanır.',
+      'Oda sahibi, tüm takımlar hazır olduğunda oyunu başlatır.',
+    ],
+  },
+  uno: {
+    emoji: '🃏',
+    title: 'UNO',
+    meta: '2-4 oyuncu · 500 puanlık maç',
+    intro: 'Klasik UNO kurallarıyla 500 puana ulaşan ilk oyuncu olun.',
+    points: [
+      'Her oyuncuya 7 kart dağıtılır; aynı renk, sayı veya sembol oynanır.',
+      'Joker kartta renk seçilir; +2 ve +4 sıradaki oyuncuya kart çektirir.',
+      'Eli bitiren, diğer oyuncuların elindeki kartların puanını alır.',
+      'Sayılar sayı değeri, Pas/Yön/+2 20, Joker/+4 50 puandır.',
+      '500 puana ilk ulaşan maçı kazanır; 2 oyuncuda Yön kartı pas gibi çalışır.',
+    ],
+  },
+};
+
 const modeOf = (id) => MODES[id] || MODES.text;
 
 /** "Karışık" sanal kategorisi: öneriler 203 sorunun tamamından gelir. */
@@ -497,6 +561,7 @@ function goHome() {
   $('pausedOverlay').hidden = true;
   $('listModal').hidden = true;
   $('teamInviteModal').hidden = true;
+  $('modeHelpModal').hidden = true;
   $('unoColorModal').hidden = true;
   $('voicePanel').hidden = true;
   showScreen('home');
@@ -1229,6 +1294,20 @@ function renderLobby() {
       : s.mode === 'text'
         ? 'İkiniz de hazır olduğunuzda sorular başlıyor.'
         : 'Rakibin katılınca oyun otomatik başlıyor.';
+}
+
+function openModeHelp(mode) {
+  const info = MODE_HELP[mode] || MODE_HELP.text;
+  $('modeHelpEmoji').textContent = info.emoji;
+  $('modeHelpMeta').textContent = info.meta;
+  $('modeHelpTitle').textContent = `${info.title} nasıl oynanır?`;
+  $('modeHelpBody').innerHTML = `
+    <p class="mode-help-intro">${esc(info.intro)}</p>
+    <ul class="mode-help-points">
+      ${info.points.map((point) => `<li>${esc(point)}</li>`).join('')}
+    </ul>
+  `;
+  $('modeHelpModal').hidden = false;
 }
 
 /* ------------------------------------------------------------------ */
@@ -2975,6 +3054,12 @@ document.addEventListener('click', (event) => {
     case 'help':
       $('helpModal').hidden = false;
       break;
+    case 'modeHelp':
+      openModeHelp(btn.dataset.mode);
+      break;
+    case 'closeModeHelp':
+      $('modeHelpModal').hidden = true;
+      break;
     case 'closeIntro':
       closeIntro();
       break;
@@ -3354,9 +3439,6 @@ $('teamInviteModal').addEventListener('click', (e) => {
   if (e.target === $('teamInviteModal')) $('teamInviteModal').hidden = true;
 });
 
-$('howBtn').addEventListener('click', () => {
-  $('helpModal').hidden = false;
-});
 $('helpClose').addEventListener('click', () => {
   $('helpModal').hidden = true;
 });
@@ -3365,6 +3447,9 @@ $('helpOk').addEventListener('click', () => {
 });
 $('helpModal').addEventListener('click', (e) => {
   if (e.target === $('helpModal')) $('helpModal').hidden = true;
+});
+$('modeHelpModal').addEventListener('click', (e) => {
+  if (e.target === $('modeHelpModal')) $('modeHelpModal').hidden = true;
 });
 
 $('listSearch').addEventListener('input', renderQuestionList);

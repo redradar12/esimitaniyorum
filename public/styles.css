@@ -321,6 +321,56 @@ body {
   gap: 8px;
 }
 
+.mode-card-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.mode-card-wrap-wide {
+  grid-column: 1 / -1;
+}
+
+.mode-help-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  align-self: stretch;
+  min-height: 24px;
+  gap: 4px;
+  padding: 0 3px;
+  font-family: inherit;
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: #a996bd;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.18s ease;
+}
+
+.mode-help-btn:hover {
+  color: var(--peach);
+}
+
+.mode-help-q {
+  display: grid;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  font-size: 8px;
+  font-weight: 900;
+  color: var(--peach);
+  border: 1px solid rgba(251, 191, 36, 0.38);
+  border-radius: 50%;
+}
+
+.home-mode {
+  width: 100%;
+  flex: 1;
+}
+
 .home-mode {
   position: relative;
   display: flex;
@@ -3101,10 +3151,10 @@ body {
   color: rgba(255, 255, 255, 0.28);
 }
 
-.home-mode:nth-child(1)::before { content: "01"; }
-.home-mode:nth-child(2)::before { content: "02"; }
-.home-mode:nth-child(3)::before { content: "03"; }
-.home-mode:nth-child(4)::before { content: "04"; }
+.mode-card-wrap:nth-child(1) .home-mode::before { content: "01"; }
+.mode-card-wrap:nth-child(2) .home-mode::before { content: "02"; }
+.mode-card-wrap:nth-child(3) .home-mode::before { content: "03"; }
+.mode-card-wrap:nth-child(4) .home-mode::before { content: "04"; }
 
 .home-mode::after {
   content: "";
@@ -3186,6 +3236,68 @@ body {
   font-size: 0.78rem;
   line-height: 1.5;
   color: #bfaad3;
+}
+
+.mode-help-modal {
+  max-width: 430px;
+}
+
+.mode-help-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mode-help-emoji {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  font-size: 1.35rem;
+  background: linear-gradient(145deg, rgba(139, 92, 246, 0.28), rgba(34, 211, 238, 0.08));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+}
+
+.mode-help-head h2 {
+  margin: 2px 0 0;
+  font-size: 1.08rem;
+  line-height: 1.2;
+}
+
+.mode-help-intro {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: #d8c9e9;
+}
+
+.mode-help-points {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 15px 0 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.mode-help-points li {
+  position: relative;
+  padding-left: 16px;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.mode-help-points li::before {
+  content: "✦";
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 0.6rem;
+  color: var(--peach);
 }
 
 .team-count-row {

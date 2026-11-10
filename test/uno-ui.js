@@ -114,6 +114,47 @@ async function waitServer() {
     check(selectedCount.players === 3, '3 oyuncu seçildi', selectedCount);
     check(selectedCount.badge === '3 kişi', 'Oluşturma rozeti 3 kişi', selectedCount.badge);
     check(selectedCount.on === '3', 'Seçili oyuncu sayısı işaretlendi');
+
+    console.log('\n1b) Moda özel yardım popupları');
+    const helpButtons = await host.$$eval('.mode-help-btn', (els) => els.length);
+    const oldHelp = await host.$('#howBtn');
+    check(helpButtons === 5, 'Her modun üstünde yardım düğmesi var', helpButtons);
+    check(oldHelp === null, 'Ana sayfadaki genel yardım düğmesi kaldırıldı');
+
+    const helpModes = [
+      ['text', 'Soru-Cevap'],
+      ['hangman', 'Adam Asmaca'],
+      ['truefalse', 'Doğru mu Yanlış mı?'],
+      ['team', 'Takımlar Kapışması'],
+      ['uno', 'UNO'],
+    ];
+    for (const [mode, label] of helpModes) {
+      await host.click(`.mode-help-btn[data-mode="${mode}"]`);
+      await host.waitForFunction(
+        "document.getElementById('modeHelpModal').hidden === false",
+        { timeout: 5000 }
+      );
+      const help = await host.evaluate(() => ({
+        title: document.getElementById('modeHelpTitle').textContent,
+        meta: document.getElementById('modeHelpMeta').textContent,
+        intro: document.querySelector('.mode-help-intro')?.textContent || '',
+        points: document.querySelectorAll('.mode-help-points li').length,
+      }));
+      check(help.title.includes(label), `${label} yardımı açıldı`, help.title);
+      check(Boolean(help.meta), `${label} yardımında oyuncu/süre bilgisi var`);
+      check(help.intro.length > 10, `${label} yardımında açıklama var`, help.intro);
+      check(help.points >= 3, `${label} yardımında maddeler var`, help.points);
+      if (mode === 'uno') {
+        await host.screenshot({ path: path.join(OUT, '41b-uno-mod-yardim.png') });
+      }
+      await host.click('[data-action="closeModeHelp"]');
+      await host.waitForFunction(
+        "document.getElementById('modeHelpModal').hidden === true",
+        { timeout: 5000 }
+      );
+    }
+    await host.evaluate(() => window.scrollTo(0, 0));
+    await sleep(150);
     await host.screenshot({ path: path.join(OUT, '41-uno-ana-sayfa.png') });
 
     await host.click('#createBtn');

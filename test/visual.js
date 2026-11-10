@@ -96,9 +96,9 @@ async function waitState(page, check, label) {
     await ayse.goto(BASE, { waitUntil: 'networkidle2' });
     await shot(ayse, '01-ana-sayfa');
 
-    await ayse.click('#howBtn');
-    await shot(ayse, '02-nasil-oynanir', false);
-    await ayse.click('#helpOk');
+    await ayse.click('.mode-help-btn[data-mode="text"]');
+    await shot(ayse, '02-mod-yardim', false);
+    await ayse.click('[data-action="closeModeHelp"]');
 
     console.log('\nOda kurma');
     await ayse.type('#nameInput', 'Ayşe');

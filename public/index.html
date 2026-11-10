@@ -37,7 +37,6 @@
             <span>Arkadaşlar ve çiftlerle</span>
           </div>
         </div>
-        <button id="howBtn" class="icon-btn" aria-label="Nasıl oynanır?">?</button>
       </header>
 
       <div class="home-hero">
@@ -60,63 +59,88 @@
           <span class="mode-selected" id="modeSelected">Soru-Cevap</span>
         </div>
         <div class="mode-grid">
-          <button type="button" class="home-mode on" data-action="pickMode" data-mode="text">
-            <span class="mode-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M20.5 11.5a8 8 0 0 1-8.5 8 8.6 8.6 0 0 1-3.4-.7L4 20l1.2-4.4a8 8 0 0 1-1.7-4.1 8 8 0 0 1 8.5-8 8 8 0 0 1 8.5 8z"/>
-                <path d="M8.5 10.5h7M8.5 14h4.5"/>
-              </svg>
-            </span>
-            <b>Soru-Cevap</b>
-            <span class="mode-check" aria-hidden="true"></span>
-          </button>
-          <button type="button" class="home-mode" data-action="pickMode" data-mode="hangman">
-            <span class="mode-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M4 20h16"/>
-                <path d="M8 20V5h7"/>
-                <path d="M15 5v3"/>
-                <circle cx="15" cy="10.5" r="2.5"/>
-                <path d="M15 13v4M15 17l-1.8 3M15 17l1.8 3"/>
-              </svg>
-            </span>
-            <b>Adam Asmaca</b>
-            <span class="mode-check" aria-hidden="true"></span>
-          </button>
-          <button type="button" class="home-mode" data-action="pickMode" data-mode="truefalse">
-            <span class="mode-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="8" cy="12" r="4.5"/>
-                <path d="M5.8 12l1.6 1.6 2.8-3.4"/>
-                <path d="M14.5 9.5l5 5M19.5 9.5l-5 5"/>
-              </svg>
-            </span>
-            <b>Doğru/Yanlış</b>
-            <span class="mode-check" aria-hidden="true"></span>
-          </button>
-          <button type="button" class="home-mode" data-action="pickMode" data-mode="team">
-            <span class="mode-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M8 4h8v4.5a4 4 0 0 1-8 0V4z"/>
-                <path d="M8 6H5v1.5a3 3 0 0 0 3 3M16 6h3v1.5a3 3 0 0 1-3 3"/>
-                <path d="M12 12.5V16M9 20h6M10 20v-2.5h4V20"/>
-              </svg>
-            </span>
-            <b>Takımlar</b>
-            <span class="mode-check" aria-hidden="true"></span>
-          </button>
-          <button type="button" class="home-mode home-mode-wide" data-action="pickMode" data-mode="uno">
-            <span class="mode-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="4.5" y="3.5" width="8.5" height="13" rx="2" transform="rotate(-12 8.75 10)"/>
-                <rect x="11" y="7" width="8.5" height="13" rx="2" transform="rotate(10 15.25 13.5)"/>
-                <path d="M12 10.5l1.1 2.2 2.4.35-1.75 1.7.4 2.4-2.15-1.15-2.15 1.15.4-2.4-1.75-1.7 2.4-.35z"/>
-              </svg>
-            </span>
-            <b>UNO</b>
-            <span class="mode-tag">YENİ</span>
-            <span class="mode-check" aria-hidden="true"></span>
-          </button>
+          <div class="mode-card-wrap">
+            <button type="button" class="mode-help-btn" data-action="modeHelp" data-mode="text" aria-label="Soru-Cevap nasıl oynanır?">
+              <span class="mode-help-q">?</span> Nasıl oynanır?
+            </button>
+            <button type="button" class="home-mode on" data-action="pickMode" data-mode="text">
+              <span class="mode-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M20.5 11.5a8 8 0 0 1-8.5 8 8.6 8.6 0 0 1-3.4-.7L4 20l1.2-4.4a8 8 0 0 1-1.7-4.1 8 8 0 0 1 8.5-8 8 8 0 0 1 8.5 8z"/>
+                  <path d="M8.5 10.5h7M8.5 14h4.5"/>
+                </svg>
+              </span>
+              <b>Soru-Cevap</b>
+              <span class="mode-check" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="mode-card-wrap">
+            <button type="button" class="mode-help-btn" data-action="modeHelp" data-mode="hangman" aria-label="Adam Asmaca nasıl oynanır?">
+              <span class="mode-help-q">?</span> Nasıl oynanır?
+            </button>
+            <button type="button" class="home-mode" data-action="pickMode" data-mode="hangman">
+              <span class="mode-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M4 20h16"/>
+                  <path d="M8 20V5h7"/>
+                  <path d="M15 5v3"/>
+                  <circle cx="15" cy="10.5" r="2.5"/>
+                  <path d="M15 13v4M15 17l-1.8 3M15 17l1.8 3"/>
+                </svg>
+              </span>
+              <b>Adam Asmaca</b>
+              <span class="mode-check" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="mode-card-wrap">
+            <button type="button" class="mode-help-btn" data-action="modeHelp" data-mode="truefalse" aria-label="Doğru mu Yanlış mı nasıl oynanır?">
+              <span class="mode-help-q">?</span> Nasıl oynanır?
+            </button>
+            <button type="button" class="home-mode" data-action="pickMode" data-mode="truefalse">
+              <span class="mode-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="8" cy="12" r="4.5"/>
+                  <path d="M5.8 12l1.6 1.6 2.8-3.4"/>
+                  <path d="M14.5 9.5l5 5M19.5 9.5l-5 5"/>
+                </svg>
+              </span>
+              <b>Doğru/Yanlış</b>
+              <span class="mode-check" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="mode-card-wrap">
+            <button type="button" class="mode-help-btn" data-action="modeHelp" data-mode="team" aria-label="Takımlar Kapışması nasıl oynanır?">
+              <span class="mode-help-q">?</span> Nasıl oynanır?
+            </button>
+            <button type="button" class="home-mode" data-action="pickMode" data-mode="team">
+              <span class="mode-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M8 4h8v4.5a4 4 0 0 1-8 0V4z"/>
+                  <path d="M8 6H5v1.5a3 3 0 0 0 3 3M16 6h3v1.5a3 3 0 0 1-3 3"/>
+                  <path d="M12 12.5V16M9 20h6M10 20v-2.5h4V20"/>
+                </svg>
+              </span>
+              <b>Takımlar</b>
+              <span class="mode-check" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="mode-card-wrap mode-card-wrap-wide">
+            <button type="button" class="mode-help-btn" data-action="modeHelp" data-mode="uno" aria-label="UNO nasıl oynanır?">
+              <span class="mode-help-q">?</span> Nasıl oynanır?
+            </button>
+            <button type="button" class="home-mode home-mode-wide" data-action="pickMode" data-mode="uno">
+              <span class="mode-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="4.5" y="3.5" width="8.5" height="13" rx="2" transform="rotate(-12 8.75 10)"/>
+                  <rect x="11" y="7" width="8.5" height="13" rx="2" transform="rotate(10 15.25 13.5)"/>
+                  <path d="M12 10.5l1.1 2.2 2.4.35-1.75 1.7.4 2.4-2.15-1.15-2.15 1.15.4-2.4-1.75-1.7 2.4-.35z"/>
+                </svg>
+              </span>
+              <b>UNO</b>
+              <span class="mode-tag">YENİ</span>
+              <span class="mode-check" aria-hidden="true"></span>
+            </button>
+          </div>
         </div>
         <p class="mode-desc" id="modeDesc">Klasik mod: cevabı yazarak tahmin et.</p>
         <div class="team-count-row" id="teamCountRow" hidden>
@@ -317,6 +341,24 @@
       <p class="hint">İpucu: Cevapları kısa tut (ör. “Adana kebap”, “mavi”). Böylece aynı cevabı vermeniz kolay olur.</p>
       <p class="hint">UNO’da 2-4 oyuncu oynar; eli bitiren, rakiplerin elindeki kartların puanını alır. 500 puana ilk ulaşan maçı kazanır. Joker kartta renk seçilir; UNO otomatik duyurulur ve +4 meydan okuması yoktur.</p>
       <button id="helpOk" class="btn btn-primary">Anladım</button>
+    </div>
+  </div>
+
+  <!-- ================= MOD YARDIMI ================= -->
+  <div id="modeHelpModal" class="modal" hidden>
+    <div class="modal-card mode-help-modal">
+      <div class="modal-head">
+        <div class="mode-help-head">
+          <span class="mode-help-emoji" id="modeHelpEmoji">?</span>
+          <div>
+            <span class="section-eyebrow" id="modeHelpMeta">OYUN MODU</span>
+            <h2 id="modeHelpTitle">Nasıl oynanır?</h2>
+          </div>
+        </div>
+        <button class="icon-btn" data-action="closeModeHelp" aria-label="Kapat">✕</button>
+      </div>
+      <div id="modeHelpBody"></div>
+      <button type="button" class="btn btn-primary btn-block" data-action="closeModeHelp">Anladım</button>
     </div>
   </div>
 
