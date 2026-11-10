@@ -1,7 +1,7 @@
 {
   "name": "Seni Tanıyorum",
   "short_name": "Seni Tanıyorum",
-  "description": "Arkadaşlar ve çiftler için iki telefonla oynanan bilgi ve tanıma yarışması",
+  "description": "Arkadaşlar ve çiftler için iki telefonla oynanan; soru-cevap, takımlar ve UNO içeren bilgi ve tanıma yarışması",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

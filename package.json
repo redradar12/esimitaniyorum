@@ -2,7 +2,7 @@
   "name": "esimi-taniyorum",
   "version": "1.0.0",
   "private": true,
-  "description": "Seni Tanıyorum - arkadaşlar ve çiftler için iki telefonla oynanan bilgi ve tanıma yarışması",
+  "description": "Seni Tanıyorum - arkadaşlar ve çiftler için soru-cevap, takımlar ve UNO içeren iki telefonla oynanan oyun",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -18,7 +18,9 @@
     "ses": "node test/voice.js",
     "ses-ui": "node test/voice-ui.js",
     "ciftler": "node test/team.js",
-    "ciftler-ui": "node test/team-ui.js"
+    "ciftler-ui": "node test/team-ui.js",
+    "uno": "node test/uno.js",
+    "uno-ui": "node test/uno-ui.js"
   },
   "engines": {
     "node": ">=18"

@@ -9,6 +9,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY server.js ./
 COPY game-data.js ./
+COPY uno.js ./
 COPY public ./public
 
 RUN addgroup -S app && adduser -S app -G app && chown -R app:app /app

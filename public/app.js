@@ -52,6 +52,12 @@ const MODES = {
     short: 'Takımlar',
     desc: '4-6 kişi: takım arkadaşları aynı cevabı vermeye çalışır.',
   },
+  uno: {
+    emoji: '🃏',
+    label: 'UNO',
+    short: 'UNO',
+    desc: '2 kişi: klasik UNO; ilk elini bitiren kazanır.',
+  },
 };
 
 const modeOf = (id) => MODES[id] || MODES.text;
@@ -489,6 +495,7 @@ function goHome() {
   $('pausedOverlay').hidden = true;
   $('listModal').hidden = true;
   $('teamInviteModal').hidden = true;
+  $('unoColorModal').hidden = true;
   $('voicePanel').hidden = true;
   showScreen('home');
   if (location.search) {
@@ -610,6 +617,8 @@ function route() {
     routeHangman(s);
   } else if (s.mode === 'truefalse') {
     routeQuiz(s);
+  } else if (s.mode === 'uno') {
+    routeUno(s);
   } else if (s.phase === 'setup') {
     showScreen('setup');
     renderSetup();
@@ -1601,6 +1610,209 @@ function sendTeamAnswer() {
     btn.disabled = true;
     btn.textContent = 'Gönderiliyor…';
   }
+}
+
+/* ------------------------------------------------------------------ */
+/*  UNO                                                               */
+/* ------------------------------------------------------------------ */
+
+const UNO_COLOR_LABELS = {
+  red: 'Kırmızı',
+  yellow: 'Sarı',
+  green: 'Yeşil',
+  blue: 'Mavi',
+};
+
+function routeUno(s) {
+  if (s.phase === 'final') {
+    showScreen('final');
+    renderUnoFinal(s);
+    return;
+  }
+  showScreen('play');
+  renderUno(s);
+}
+
+function unoValueFace(card) {
+  if (!card) return '';
+  if (card.value === 'wild') return '★';
+  if (card.value === 'wild4') return '+4';
+  if (card.value === 'draw2') return '+2';
+  if (card.value === 'skip') return '⊘';
+  if (card.value === 'reverse') return '⟲';
+  return card.value;
+}
+
+function unoCardText(card) {
+  if (!card) return '';
+  if (card.color === 'wild') {
+    return card.value === 'wild4' ? '+4 Joker' : 'Joker';
+  }
+  const value =
+    card.value === 'draw2'
+      ? '+2'
+      : card.value === 'skip'
+        ? 'Pas'
+        : card.value === 'reverse'
+          ? 'Yön'
+          : card.value;
+  return `${UNO_COLOR_LABELS[card.color] || ''} ${value}`;
+}
+
+function unoCardHtml(card, options = {}) {
+  const face = unoValueFace(card);
+  const colorClass = card.color === 'wild' ? 'uno-wild' : `uno-${card.color}`;
+  const classes = ['uno-card', colorClass];
+  if (options.playable) classes.push('playable');
+  if (options.className) classes.push(options.className);
+  const content = `
+    <span class="uno-corner">${face}</span>
+    <span class="uno-face">${face}</span>
+    <span class="uno-corner bottom">${face}</span>
+  `;
+  if (options.interactive === false) {
+    return `<div class="${classes.join(' ')}" aria-label="${esc(unoCardText(card))}">${content}</div>`;
+  }
+  return `<button type="button" class="${classes.join(' ')}"
+    data-action="unoPlay" data-card="${esc(card.id)}"
+    ${options.disabled ? 'disabled' : ''}
+    aria-label="${esc(unoCardText(card))}">${content}</button>`;
+}
+
+function unoMiniBacks(count) {
+  const total = Math.min(4, Math.max(0, count));
+  let html = '';
+  for (let i = 0; i < total; i += 1) {
+    html += '<span class="uno-back"></span>';
+  }
+  return html;
+}
+
+function renderUno(s) {
+  const u = s.uno;
+  if (!u) return;
+
+  $('playTitle').textContent = 'UNO';
+  $('playCounter').textContent = `${u.myCount} kart`;
+
+  const playable = new Set(u.playableIds || []);
+  const status = u.pendingColor
+    ? u.colorChooser
+      ? 'Joker için renk seç'
+      : `${u.currentPlayerName} renk seçiyor…`
+    : u.myTurn
+      ? 'Sıra sende'
+      : `${u.currentPlayerName} oynuyor…`;
+
+  const hand = u.myHand
+    .map((card) =>
+      unoCardHtml(card, {
+        interactive: true,
+        playable: playable.has(card.id),
+        disabled: !playable.has(card.id),
+      })
+    )
+    .join('');
+
+  const log = (u.log || [])
+    .slice(-3)
+    .map((line) => `<li>${esc(line)}</li>`)
+    .join('');
+
+  $('playBody').innerHTML = `
+    <div class="uno-board">
+      <div class="uno-opponent">
+        <div class="uno-player">
+          <div class="avatar alt">${esc(initial(u.opponentName || '?'))}</div>
+          <div class="uno-player-meta">
+            <b>${esc(u.opponentName || 'Rakibin')}</b>
+            <span>${u.opponentCount} kart</span>
+          </div>
+          ${u.opponentCount === 1 ? '<span class="uno-badge">UNO!</span>' : ''}
+        </div>
+        <div class="uno-mini-hand">${unoMiniBacks(u.opponentCount)}</div>
+      </div>
+
+      <div class="uno-table">
+        <button type="button" class="uno-draw" data-action="unoDraw" ${u.myTurn ? '' : 'disabled'}>
+          <span class="uno-draw-stack"><i></i><i></i><i></i></span>
+          <span class="uno-draw-label">Kart çek</span>
+          <small>${u.deckCount} kart</small>
+        </button>
+        <div class="uno-discard-wrap">
+          ${u.top ? unoCardHtml(u.top, { interactive: false, className: 'uno-discard' }) : ''}
+          <span class="uno-color-pill ${u.currentColor || 'pending'}">
+            ${u.colorName || 'Renk seç'}
+          </span>
+        </div>
+      </div>
+
+      <div class="uno-status">
+        <span class="uno-turn-dot ${u.myTurn ? 'mine' : ''}"></span>
+        <span>${esc(status)}</span>
+      </div>
+
+      ${log ? `<ul class="uno-log">${log}</ul>` : ''}
+
+      <div class="uno-me">
+        <div class="uno-player">
+          <div class="avatar">${esc(initial(s.me.name))}</div>
+          <div class="uno-player-meta">
+            <b>Sen</b>
+            <span>${u.myCount} kart</span>
+          </div>
+          ${u.myCount === 1 ? '<span class="uno-badge">UNO!</span>' : ''}
+        </div>
+        <span class="uno-hand-hint">${u.myTurn ? 'Kart seç veya desteden çek' : 'Sıranı bekle'}</span>
+      </div>
+
+      <div class="uno-hand">${hand}</div>
+    </div>
+  `;
+
+  $('unoColorModal').hidden = !u.colorChooser;
+  updateVoiceUi();
+}
+
+function renderUnoFinal(s) {
+  const r = s.results;
+  if (!r) return;
+
+  const logs = (r.log || [])
+    .slice(-6)
+    .map((line) => `<li>${esc(line)}</li>`)
+    .join('');
+
+  $('finalBody').innerHTML = `
+    <div class="card winner-card">
+      <span class="trophy">🏆</span>
+      <h2>${esc(r.winner)} kazandı!</h2>
+      <p class="winner-sub">İlk elini bitiren oyuncu.</p>
+    </div>
+
+    <div class="uno-final-score">
+      <div class="uno-final-player win">
+        <span>${esc(r.winner)}</span>
+        <b>0</b>
+        <small>kart</small>
+      </div>
+      <div class="uno-final-player">
+        <span>${esc(r.loser)}</span>
+        <b>${r.loserCards}</b>
+        <small>kart</small>
+      </div>
+    </div>
+
+    ${logs ? `<div class="card"><div class="section-title">Son hamleler</div><ul class="uno-log">${logs}</ul></div>` : ''}
+
+    <div class="btn-row">
+      <button type="button" class="btn btn-primary" data-action="unoRestart">Yeniden oyna</button>
+      <button type="button" class="btn btn-ghost" data-action="leave">Ana sayfa</button>
+    </div>
+    <p class="ready-note">Yeniden oynamak için bir oyuncunun başlatması yeterli.</p>
+  `;
+  $('unoColorModal').hidden = true;
+  updateVoiceUi();
 }
 
 /* ------------------------------------------------------------------ */
@@ -2709,7 +2921,7 @@ document.addEventListener('click', (event) => {
       renderSetup();
       break;
     case 'pickMode':
-      app.homeMode = ['text', 'hangman', 'truefalse', 'team'].includes(btn.dataset.mode)
+      app.homeMode = ['text', 'hangman', 'truefalse', 'team', 'uno'].includes(btn.dataset.mode)
         ? btn.dataset.mode
         : 'text';
       document
@@ -2773,6 +2985,21 @@ document.addEventListener('click', (event) => {
       break;
     case 'teamInviteCopy':
       copyTeamInvite();
+      break;
+    case 'unoPlay':
+      if (!app.state || app.state.mode !== 'uno' || app.state.phase !== 'play') break;
+      socket.emit('uno_play', { cardId: btn.dataset.card });
+      btn.disabled = true;
+      break;
+    case 'unoDraw':
+      socket.emit('uno_draw');
+      break;
+    case 'unoColor':
+      socket.emit('uno_color', { color: btn.dataset.color });
+      $('unoColorModal').hidden = true;
+      break;
+    case 'unoRestart':
+      socket.emit('uno_restart');
       break;
     case 'suggest': {
       if (!app.setup) break;

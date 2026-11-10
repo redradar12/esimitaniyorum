@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0f1f" />
-  <meta name="description" content="Seni Tanıyorum — arkadaşlar ve çiftler için iki telefonla oynanan bilgi ve tanıma yarışması." />
+  <meta name="description" content="Seni Tanıyorum — arkadaşlar ve çiftler için iki telefonla oynanan; soru-cevap, takımlar ve UNO içeren bilgi ve tanıma yarışması." />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Seni Tanıyorum" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -43,11 +43,11 @@
       <div class="home-hero">
         <span class="eyebrow">BİRLİKTE OYNAYIN</span>
         <h1>Birbirinizi<br /><span>ne kadar iyi</span><br />tanıyorsunuz?</h1>
-        <p class="home-sub">Dört mod, tek oda — soru-cevap, adam asmaca, doğru/yanlış ve takımlar kapışması. İster yazarak ister harf harf oynayın.</p>
+        <p class="home-sub">Beş mod, tek oda — soru-cevap, adam asmaca, doğru/yanlış, takımlar kapışması ve UNO. İster yazarak ister kart oynayarak.</p>
         <div class="hero-meta">
           <span><i class="meta-dot"></i>2 telefon</span>
           <span><i class="meta-dot"></i>gerçek zamanlı</span>
-          <span><i class="meta-dot"></i>4 oyun modu</span>
+          <span><i class="meta-dot"></i>5 oyun modu</span>
         </div>
       </div>
 
@@ -103,6 +103,18 @@
               </svg>
             </span>
             <b>Takımlar</b>
+            <span class="mode-check" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="home-mode home-mode-wide" data-action="pickMode" data-mode="uno">
+            <span class="mode-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="4.5" y="3.5" width="8.5" height="13" rx="2" transform="rotate(-12 8.75 10)"/>
+                <rect x="11" y="7" width="8.5" height="13" rx="2" transform="rotate(10 15.25 13.5)"/>
+                <path d="M12 10.5l1.1 2.2 2.4.35-1.75 1.7.4 2.4-2.15-1.15-2.15 1.15.4-2.4-1.75-1.7 2.4-.35z"/>
+              </svg>
+            </span>
+            <b>UNO</b>
+            <span class="mode-tag">YENİ</span>
             <span class="mode-check" aria-hidden="true"></span>
           </button>
         </div>
@@ -286,15 +298,16 @@
         <button id="helpClose" class="icon-btn" aria-label="Kapat">✕</button>
       </div>
       <ol class="steps">
-        <li><b>Mod seç ve oda kur.</b> Soru-Cevap, Adam Asmaca, Doğru/Yanlış veya Takımlar Kapışması. Takma adını yaz, oda kodunu arkadaşınla paylaş.</li>
+        <li><b>Mod seç ve oda kur.</b> Soru-Cevap, Adam Asmaca, Doğru/Yanlış, Takımlar Kapışması veya UNO. Takma adını yaz, oda kodunu arkadaşınla paylaş.</li>
         <li><b>Arkadaşın katılsın.</b> Kodu kendi telefonuna girsin; aynı Wi-Fi’de ya da internette olabilirsiniz.</li>
         <li><b>5 soru hazırla.</b> Soru-Cevap’ta kendinle ilgili 5 soru ve cevabını yaz. 10 kategoride 200+ hazır soru var; “Tümünü gör” ile hepsine bakabilir, arayabilirsin.</li>
-        <li><b>Moda göre oyna.</b> Soru-Cevap’ta cevabı yazarsın, Adam Asmaca’da harf seçersin, Doğru/Yanlış’ta karar verirsin.</li>
+        <li><b>Moda göre oyna.</b> Soru-Cevap’ta cevabı yazarsın, Adam Asmaca’da harf seçersin, Doğru/Yanlış’ta karar verirsin, UNO’da renk/sayı eşleştirip elini bitirirsin.</li>
         <li><b>Takımlar Kapışması.</b> 2 veya 3 takım aynı odada yarışır. Her takıma ayrı davet bağlantısı gönder; iki takım arkadaşı da aynı bağlantıyla katılır. Sistem ortak geçmiş soruları sorar; takım arkadaşları aynı cevabı verirse takım +10 puan kazanır.</li>
         <li><b>Puan toplayın.</b> Doğru cevaplar puan kazandırır. Tur bitince ikiniz de yeni 5 soru hazırlayıp devam edersiniz.</li>
         <li><b>Sesli sohbet (isteğe bağlı).</b> Sağ alttaki 🎙️ düğmesinden mikrofonu aç; arkadaşın da açınca konuşabilirsiniz.</li>
       </ol>
       <p class="hint">İpucu: Cevapları kısa tut (ör. “Adana kebap”, “mavi”). Böylece aynı cevabı vermeniz kolay olur.</p>
+      <p class="hint">UNO’da ilk elini bitiren kazanır; joker kartta renk seçilir. UNO otomatik duyurulur; +4 meydan okuması yoktur.</p>
       <button id="helpOk" class="btn btn-primary">Anladım</button>
     </div>
   </div>
@@ -332,6 +345,22 @@
       <button class="btn btn-primary btn-block" data-action="teamInviteShare">WhatsApp’tan gönder</button>
       <button class="btn btn-block" data-action="teamInviteCopy">Bağlantıyı kopyala</button>
       <p class="hint" id="teamInviteNote">İki takım arkadaşı da bu bağlantıyı kullanmalı. Biri ilk, diğeri ikinci oyuncu olarak aynı takıma katılır.</p>
+    </div>
+  </div>
+
+  <!-- ================= UNO RENK SEÇİMİ ================= -->
+  <div id="unoColorModal" class="modal" hidden>
+    <div class="modal-card uno-color-modal">
+      <div class="modal-head">
+        <h2>Renk seç</h2>
+      </div>
+      <p class="hint center">Joker kart için yeni rengi seç.</p>
+      <div class="uno-color-grid">
+        <button type="button" class="uno-color-btn uno-red" data-action="unoColor" data-color="red"><span>Kırmızı</span></button>
+        <button type="button" class="uno-color-btn uno-yellow" data-action="unoColor" data-color="yellow"><span>Sarı</span></button>
+        <button type="button" class="uno-color-btn uno-green" data-action="unoColor" data-color="green"><span>Yeşil</span></button>
+        <button type="button" class="uno-color-btn uno-blue" data-action="unoColor" data-color="blue"><span>Mavi</span></button>
+      </div>
     </div>
   </div>
 

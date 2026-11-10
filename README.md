@@ -4,9 +4,11 @@ Arkadaşınla veya partnerinle **iki ayrı telefondan**, aynı anda oynanan bir 
 
 Her oyuncu kendisi hakkında **5 soru ve cevabını** yazar. Sırayla karşındaki oyuncunun sorularına cevap verirsin, puanlar hesaplanır, tur biter ve **yeni 5 soruya** geçilir. Soru bulamazsan **10 kategorideki 200+ hazır sorudan** otomatik seçilir.
 
-Dört oyun modu var: **⌨️ Soru-Cevap** (5 soru hazırlanır), **🔤 Adam Asmaca** (sırayla birbirinize soru sorarsınız, cevabı harf harf tahmin edersiniz), **✅ Doğru mu Yanlış mı?** (sistem ifade sorar, ikiniz de cevaplarsınız) ve **🏆 Takımlar Kapışması** (2-3 takım halinde yarışır). Adam Asmaca, Doğru/Yanlış ve Takımlar Kapışması’nda **hazır soru ekranı yoktur**; modu oda kurarken seçersin, oyuncular katılınca oyun doğrudan başlar.
+Beş oyun modu var: **⌨️ Soru-Cevap** (5 soru hazırlanır), **🔤 Adam Asmaca** (sırayla birbirinize soru sorarsınız, cevabı harf harf tahmin edersiniz), **✅ Doğru mu Yanlış mı?** (sistem ifade sorar, ikiniz de cevaplarsınız), **🏆 Takımlar Kapışması** (2-3 takım halinde yarışır) ve **🃏 UNO** (2 kişilik klasik kart oyunu). Adam Asmaca, Doğru/Yanlış, Takımlar Kapışması ve UNO’da **hazır soru ekranı yoktur**; modu oda kurarken seçersin, oyuncular katılınca oyun doğrudan başlar.
 
 **Takımlar Kapışması:** **2 takım (4 kişi)** veya **3 takım (6 kişi)** aynı odaya katılır. Her takım kendi iki telefonundan oynar; sistem ortak geçmiş soruları sorar, takım arkadaşları aynı cevabı verirse takım **+10 puan** kazanır. Takımlar birbirine karşı yarışır.
+
+**UNO:** İki oyuncuya 7’şer kart dağıtılır. Renk, sayı veya sembol eşleştirilir; joker kartta renk seçilir. +2 ve +4 kartları rakibine kart çektirir; ilk elini bitiren kazanır. UNO otomatik duyurulur; klasik kuralların mobil, tek ellik sürümüdür. +4 meydan okuması yoktur; kart yalnızca uygun renk yokken oynanabilir.
 
 Arayüz Türkçe, mobil öncelikli ve koyu modern temalı. Kurulum gerektirmeyen vanilla JavaScript + Node.js/Socket.IO ile yazıldı. 2026 görsel katmanında **Three.js** ile hafif 3D şekiller, **GSAP** ile ekran geçişleri ve mikro animasyonlar, cam efektli kartlar ve Fraunces/Manrope tipografisi kullanılır.
 
@@ -68,8 +70,9 @@ Odadayken sağ alttaki **🎙️** düğmesine basıp **“Mikrofonu aç”** de
 | --- | --- |
 | ⌨️ **Soru-Cevap** | 5 soru hazırlanır. Rakibinin cevabını yazarak tahmin edersin. Her soru için 45 saniye. |
 | 🔤 **Adam Asmaca** | Hazırlık yok. **Sırayla birbirinize soru sorarsınız:** biri kendisiyle ilgili soru + cevap yazar, diğeri cevabı harf harf tahmin eder; sonra roller değişir. Her soruda 6 can; doğru harf **+5**, cevabı bitiren **+10**. 6 yanlışta o sorudan puan yok. |
-| ✅ **Doğru mu Yanlış mı?** | Hazırlık yok. Sistem genel kültür/ilişki ifadesi sorar; **ikiniz de** Doğru/Yanlış dersiniz. 15 saniye; doğru **+10**, ikisi de doğruysa hızlı olan **+2** ekstra. |
+| ✅ **Doğru mu Yanlış mı?** | Hazırlık yok. Sistem genel kültür/sosyal ifade sorar; **ikiniz de** Doğru/Yanlış dersiniz. 15 saniye; doğru **+10**, ikisi de doğruysa hızlı olan **+2** ekstra. |
 | 🏆 **Takımlar Kapışması** | Hazırlık yok. 2 veya 3 takım aynı odada. Sistem ortak geçmiş sorusu sorar; **her takımın iki oyuncusu ayrı ayrı** cevap verir. Cevaplar aynıysa takım **+10** alır. 10 soru / tur; 45 saniye cevap süresi. |
+| 🃏 **UNO** | Hazırlık yok. 2 oyuncuya 7’şer kart dağıtılır. Aynı renk, sayı veya sembol oynanır; jokerde renk seçilir. +2/+4 rakibine kart çektirir; ilk elini bitiren kazanır. UNO otomatik duyurulur. |
 
 ---
 
@@ -79,9 +82,9 @@ Odadayken sağ alttaki **🎙️** düğmesine basıp **“Mikrofonu aç”** de
 | --- | --- |
 | **Lobi** | Ana sayfada mod seçilir; oda kodu + QR kod oluşur, arkadaşın katılır. Takımlar Kapışması’nda her takım için ayrı davet bağlantısı/QR oluşur. |
 | **Soru hazırlığı** | Yalnızca **Soru-Cevap** modunda. Herkes kendisi hakkında 5 soru ve cevabını yazar. **Karışık** kategori veya 10 kategoriden biri seçilir; “Tümünü gör” ile 203 soru aranır. |
-| **Oyun** | Soru-Cevap’ta cevap yazılır; Adam Asmaca’da sırayla soru sorulur ve cevap harf harf tahmin edilir; Doğru/Yanlış’ta iki oyuncu da karar verir; Takımlar Kapışması’nda her takımın iki oyuncusu aynı soruya ayrı ayrı cevap verir. |
-| **Tur sonu** | Soru-Cevap’ta 10 soru, Adam Asmaca’da **2 soru (bir sen bir rakibin)**, Doğru/Yanlış’ta 10 ifade, Takımlar Kapışması’nda **10 soru** biter. Skorlar ve geçmiş gösterilir. Takımlar Kapışması’nda oda sahibi “Sonraki 10 soru” veya “Bitir” der. Diğer modlarda iki taraf da devam derse yeni tur başlar. |
-| **Final** | "Bitir" ile toplam puanlar, kazanan ve (quizde) uyum yüzdesi gösterilir. Takımlar Kapışması’nda kazanan takım ve tüm soruların aynı cevap geçmişi listelenir. "Yeniden oyna" ile sıfırdan başlanır. |
+| **Oyun** | Soru-Cevap’ta cevap yazılır; Adam Asmaca’da sırayla soru sorulur ve cevap harf harf tahmin edilir; Doğru/Yanlış’ta iki oyuncu da karar verir; Takımlar Kapışması’nda her takımın iki oyuncusu aynı soruya ayrı ayrı cevap verir; UNO’da sırayla kart oynanır veya desteden çekilir. |
+| **Tur sonu** | Soru-Cevap’ta 10 soru, Adam Asmaca’da **2 soru (bir sen bir rakibin)**, Doğru/Yanlış’ta 10 ifade, Takımlar Kapışması’nda **10 soru** biter. UNO tek ellik oynanır. Skorlar ve geçmiş gösterilir. Takımlar Kapışması’nda oda sahibi “Sonraki 10 soru” veya “Bitir” der. Diğer modlarda iki taraf da devam derse yeni tur başlar. |
+| **Final** | "Bitir" ile toplam puanlar, kazanan ve (quizde) uyum yüzdesi gösterilir. Takımlar Kapışması’nda kazanan takım ve tüm soruların aynı cevap geçmişi listelenir. UNO’da ilk elini bitiren kazanır; “Yeniden oyna” yeni el dağıtır. |
 
 ### Puanlama
 
@@ -109,6 +112,7 @@ Türkçe karakterler ve büyük/küçük harf farkı önemsenmez (`İ`/`i`, `Ş`
 esimitanıyorum/
 ├─ server.js              # Express + Socket.IO oyun sunucusu (oda, tur, puanlama)
 ├─ game-data.js           # Doğru/yanlış ifadeleri, takımlar soruları ve yedek kelime bankası
+├─ uno.js                 # UNO destesi ve kart kuralları
 ├─ public/
 │  ├─ index.html          # Ekranlar ve modal
 │  ├─ styles.css          # Mobil öncelikli tema
@@ -121,6 +125,8 @@ esimitanıyorum/
 │  └─ visuals.js          # Three.js/GSAP görsel katmanı (kaynak)
 ├─ test/
 │  ├─ flow.js             # Uçtan uca sunucu testi (iki sahte oyuncu)
+│  ├─ uno.js              # UNO deste/kural ve bot eli testi
+│  ├─ uno-ui.js           # UNO mobil masa testi
 │  └─ visual.js           # Chrome ile mobil ekran görüntüsü testi
 ├─ baslat.bat             # Windows tek tık başlatıcı
 └─ package.json
@@ -131,6 +137,7 @@ esimitanıyorum/
 - Bağlantı koparsa oyun duraklar; oyuncu geri döndüğünde süre yenilenir ve kaldığı yerden devam eder. (Bu davranış ikili modlar içindir; Takımlar Kapışması’nda soru süresi işlemeye devam eder, oyuncu süre dolmadan dönerse cevap verebilir.)
 - Takımlar Kapışması’nda oda sahibi takımlar için ayrı davet bağlantısı üretir: `/?oda=KOD&takim=1`, `takim=2`, `takim=3`. Aynı bağlantıyı kullanan iki takım arkadaşı aynı takımın 1. ve 2. koltuğuna yerleşir.
 - Takımlar Kapışması’nda oyun sırasında biri odadan ayrılırsa oda lobiye döner; kalan oyuncular yeni davetle eksik koltuğu doldurabilir.
+- UNO’da deste, eller ve sıra sunucuda tutulur; rakip yalnızca kart sayısını görür. Tek ellik oynanır; UNO otomatik duyurulur ve +4 kartı yalnızca uygun renk yokken oynanabilir.
 - Oda kodu 5 karakterdir (karışabilecek harfler kullanılmaz).
 - Oturum `sessionStorage`'da tutulur; sayfa yenilenince oyuna geri dönülür.
 
@@ -148,6 +155,8 @@ npm run dogruyanlis  # Doğru/Yanlış sunucu akışı (iddia, puan, geçmiş)
 npm run dogruyanlis-ui # Doğru/Yanlış arayüzü (iddia kartı, butonlar, sonuç)
 npm run ciftler      # Takımlar Kapışması sunucu akışı (4 ve 6 oyuncu, aynı cevap, puan, final)
 npm run ciftler-ui   # Takımlar Kapışması arayüzü (davet, lobi, 4 oyunculu oyun, final)
+npm run uno          # UNO deste/kural ve bot eli sunucu testi
+npm run uno-ui       # UNO mobil masa, kart oynama ve çekme arayüz testi
 npm run ses          # Sesli sohbet sinyal rölesi (SDP/ICE, katılma/ayrılma)
 npm run ses-ui       # Sahte mikrofonla gerçek WebRTC bağlantısı + mute/ayrılma
 ```

@@ -13,6 +13,14 @@ const express = require('express');
 const { Server } = require('socket.io');
 const QRCode = require('qrcode');
 const { TRUE_FALSE, TEAM_QUESTIONS } = require('./game-data');
+const {
+  UNO_COLORS,
+  UNO_COLOR_NAMES,
+  createUnoDeck,
+  isUnoPlayable,
+  unoCardLabel,
+  shuffleUno,
+} = require('./uno');
 
 const PORT = Number(process.env.PORT) || 4173;
 const HOST = process.env.HOST || undefined;
@@ -31,6 +39,7 @@ const TEAM_SECONDS = 45;
 const TEAM_REVEAL_MS = 12000;
 const TEAM_QUESTIONS_PER_ROUND = 10;
 const TEAM_MATCH_POINTS = 10;
+const UNO_START_CARDS = 7;
 const REVEAL_MS = 25000;
 const ROOM_TTL = 1000 * 60 * 60 * 6; // 6 saat
 
@@ -279,7 +288,7 @@ function createRoom(mode, options) {
     mode === 'team' ? (options && Number(options.teams) === 3 ? 3 : 2) : 0;
   return {
     code: makeCode(),
-    mode: ['text', 'hangman', 'truefalse', 'team'].includes(mode) ? mode : 'text',
+    mode: ['text', 'hangman', 'truefalse', 'team', 'uno'].includes(mode) ? mode : 'text',
     teamCount,
     hostId: null,
     teamScores: {},
@@ -297,6 +306,7 @@ function createRoom(mode, options) {
     quiz: null,
     quizTimer: null,
     quizRevealTimer: null,
+    uno: null,
     guessTimer: null,
     revealTimer: null,
   };
@@ -496,6 +506,222 @@ function teamStateFor(room, index, state, me) {
   return state;
 }
 
+function buildUnoResults(room) {
+  const u = room.uno;
+  const winner = u && u.winner != null ? room.players[u.winner] : null;
+  const loser = u && u.winner != null ? room.players[1 - u.winner] : null;
+  return {
+    mode: 'uno',
+    winner: winner ? winner.name : '',
+    loser: loser ? loser.name : '',
+    winnerCards: u && u.winner != null ? u.hands[u.winner].length : 0,
+    loserCards: u && u.winner != null ? u.hands[1 - u.winner].length : 0,
+    turns: u ? u.turns : 0,
+    log: u ? u.log.slice(-12) : [],
+    winners: winner ? [winner.name] : [],
+    tie: false,
+  };
+}
+
+function ensureUnoDeck(uno) {
+  if (uno.deck.length) return;
+  const top = uno.discard[uno.discard.length - 1] || null;
+  const rest = uno.discard.slice(0, -1);
+  if (!rest.length) return;
+  uno.deck = shuffleUno(rest);
+  uno.discard = top ? [top] : [];
+}
+
+function drawUnoCards(uno, playerIndex, count) {
+  const drawn = [];
+  for (let i = 0; i < count; i += 1) {
+    if (!uno.deck.length) ensureUnoDeck(uno);
+    if (!uno.deck.length) break;
+    drawn.push(uno.deck.pop());
+  }
+  uno.hands[playerIndex].push(...drawn);
+  return drawn;
+}
+
+function maybeUnoToast(room, playerIndex) {
+  const uno = room.uno;
+  const player = room.players[playerIndex];
+  if (!uno || !player || uno.hands[playerIndex].length !== 1) return;
+  io.to(room.code).emit('toast', { text: `${player.name}: UNO!` });
+}
+
+function declareUnoWin(room, playerIndex) {
+  const uno = room.uno;
+  if (!uno || uno.winner != null) return;
+  const winner = room.players[playerIndex];
+  uno.winner = playerIndex;
+  uno.log.push(`${winner.name} elini bitirdi!`);
+  finishGame(room);
+}
+
+function applyUnoAction(room, playerIndex, card) {
+  const uno = room.uno;
+  const otherIndex = 1 - playerIndex;
+  let skip = false;
+
+  if (card.value === 'skip' || card.value === 'reverse') {
+    skip = true;
+    uno.log.push(`${room.players[otherIndex].name} pas geçti.`);
+  } else if (card.value === 'draw2') {
+    drawUnoCards(uno, otherIndex, 2);
+    skip = true;
+    uno.log.push(`${room.players[otherIndex].name} 2 kart çekti.`);
+  } else if (card.value === 'wild4') {
+    drawUnoCards(uno, otherIndex, 4);
+    skip = true;
+    uno.log.push(`${room.players[otherIndex].name} 4 kart çekti.`);
+  }
+
+  if (!uno.hands[playerIndex].length) {
+    declareUnoWin(room, playerIndex);
+    return;
+  }
+
+  uno.current = skip ? playerIndex : otherIndex;
+  maybeUnoToast(room, playerIndex);
+  broadcast(room);
+}
+
+function playUnoCard(room, playerIndex, card) {
+  const uno = room.uno;
+  const hand = uno.hands[playerIndex];
+  const cardIndex = hand.findIndex((item) => item.id === card.id);
+  if (cardIndex < 0) return false;
+
+  hand.splice(cardIndex, 1);
+  uno.discard.push(card);
+  uno.turns += 1;
+  uno.log.push(`${room.players[playerIndex].name} ${unoCardLabel(card)} oynadı.`);
+
+  if (!hand.length) {
+    if (card.value === 'draw2') drawUnoCards(uno, 1 - playerIndex, 2);
+    if (card.value === 'wild4') drawUnoCards(uno, 1 - playerIndex, 4);
+    declareUnoWin(room, playerIndex);
+    return true;
+  }
+
+  if (card.color === 'wild') {
+    uno.color = null;
+    uno.pendingColorBy = playerIndex;
+    uno.pendingCard = card;
+    uno.log.push(`${room.players[playerIndex].name} renk seçiyor.`);
+    broadcast(room);
+    return true;
+  }
+
+  uno.color = card.color;
+  applyUnoAction(room, playerIndex, card);
+  return true;
+}
+
+function startUnoGame(room) {
+  if (!room.players || room.players.length < 2) return;
+  clearTimers(room);
+
+  const deck = createUnoDeck();
+  const hands = [[], []];
+  for (let i = 0; i < UNO_START_CARDS; i += 1) {
+    hands[0].push(deck.pop());
+    hands[1].push(deck.pop());
+  }
+
+  let top = deck.pop();
+  let guard = 0;
+  while (top && top.value === 'wild4' && guard < 30) {
+    deck.push(top);
+    shuffleUno(deck);
+    top = deck.pop();
+    guard += 1;
+  }
+
+  const uno = {
+    deck,
+    discard: top ? [top] : [],
+    hands,
+    current: 0,
+    color: top && top.color !== 'wild' ? top.color : null,
+    pendingColorBy: top && top.value === 'wild' ? 0 : null,
+    pendingCard: null,
+    winner: null,
+    log: [],
+    turns: 0,
+  };
+  room.uno = uno;
+  room.phase = 'play';
+  room.round = 1;
+  room.history = [];
+  room.players.forEach((player) => {
+    player.totalScore = 0;
+    player.roundScore = 0;
+    player.totalCorrect = 0;
+    player.readyNext = false;
+  });
+
+  if (top) {
+    if (top.value === 'draw2') {
+      drawUnoCards(uno, 0, 2);
+      uno.current = 1;
+      uno.log.push(`Açılış ${unoCardLabel(top)}: ilk oyuncu 2 kart çekti.`);
+    } else if (top.value === 'skip' || top.value === 'reverse') {
+      uno.current = 1;
+      uno.log.push(`Açılış ${unoCardLabel(top)}: ilk oyuncu pas geçti.`);
+    } else if (top.value === 'wild') {
+      uno.log.push('Açılış joker: ilk oyuncu rengi seçiyor.');
+    } else {
+      uno.log.push(`Açılış kartı: ${unoCardLabel(top)}.`);
+    }
+  }
+
+  broadcast(room);
+}
+
+function unoStateFor(room, index, state, me) {
+  const uno = room.uno;
+  if (!uno) return state;
+
+  const opponent = other(room, index);
+  const myHand = uno.hands[index] || [];
+  const opponentHand = uno.hands[1 - index] || [];
+  const top = uno.discard[uno.discard.length - 1] || null;
+  const pendingColor = uno.pendingColorBy != null;
+  const myTurn = uno.winner == null && uno.current === index && !pendingColor;
+  const playableIds = myTurn && top
+    ? myHand
+        .filter((card) => isUnoPlayable(card, top, uno.color, myHand))
+        .map((card) => card.id)
+    : [];
+
+  state.uno = {
+    myHand,
+    myCount: myHand.length,
+    opponentCount: opponentHand.length,
+    opponentName: opponent ? opponent.name : '',
+    top,
+    currentColor: uno.color,
+    colorName: uno.color ? UNO_COLOR_NAMES[uno.color] : '',
+    myTurn,
+    playableIds,
+    pendingColor,
+    colorChooser: pendingColor && uno.pendingColorBy === index,
+    currentPlayerName: room.players[uno.current] ? room.players[uno.current].name : '',
+    deckCount: uno.deck.length,
+    winner: uno.winner,
+    log: uno.log.slice(-5),
+    uno: myHand.length === 1 || opponentHand.length === 1,
+  };
+
+  if (room.phase === 'final') {
+    state.results = buildUnoResults(room);
+  }
+
+  return state;
+}
+
 function stateFor(room, index) {
   const me = room.players[index];
   if (!me) return null;
@@ -526,6 +752,10 @@ function stateFor(room, index) {
 
   if (room.mode === 'team') {
     return teamStateFor(room, index, state, me);
+  }
+
+  if (room.mode === 'uno' && room.uno) {
+    return unoStateFor(room, index, state, me);
   }
 
   if (room.mode === 'text' && (room.phase === 'play' || room.phase === 'reveal')) {
@@ -1244,6 +1474,7 @@ io.on('connection', (socket) => {
 
     if (room.mode === 'text') resetToSetup(room);
     else if (room.mode === 'hangman') startHangmanGame(room);
+    else if (room.mode === 'uno') startUnoGame(room);
     else startQuizGame(room);
 
     socket.emit('joined', { code: room.code, playerId: player.id, index: 1 });
@@ -1579,6 +1810,97 @@ io.on('connection', (socket) => {
     startTeamGame(room);
   });
 
+  socket.on('uno_play', ({ cardId } = {}) => {
+    const room = roomOf(socket);
+    const me = meOf(room, socket);
+    if (!room || !me) return;
+    if (room.mode !== 'uno' || room.phase !== 'play' || !room.uno) return;
+    const uno = room.uno;
+    if (uno.pendingColorBy != null) {
+      return sendError(socket, 'uno_color', 'Önce joker için bir renk seç.');
+    }
+    if (uno.winner != null || uno.current !== me.index) {
+      return sendError(socket, 'uno_turn', 'Sıra sende değil.');
+    }
+    const card = uno.hands[me.index].find((item) => item.id === cardId);
+    const top = uno.discard[uno.discard.length - 1];
+    if (!card) return sendError(socket, 'uno_card', 'Kart elinde değil.');
+    if (!isUnoPlayable(card, top, uno.color, uno.hands[me.index])) {
+      return sendError(socket, 'uno_card', 'Bu kart şu an oynanamaz.');
+    }
+    playUnoCard(room, me.index, card);
+  });
+
+  socket.on('uno_draw', () => {
+    const room = roomOf(socket);
+    const me = meOf(room, socket);
+    if (!room || !me) return;
+    if (room.mode !== 'uno' || room.phase !== 'play' || !room.uno) return;
+    const uno = room.uno;
+    if (uno.pendingColorBy != null) return;
+    if (uno.winner != null || uno.current !== me.index) return;
+
+    const drawn = drawUnoCards(uno, me.index, 1);
+    if (!drawn.length) {
+      uno.log.push('Deste bitti; sıra karşıya geçti.');
+      uno.current = 1 - me.index;
+      broadcast(room);
+      return;
+    }
+
+    const card = drawn[0];
+    uno.turns += 1;
+    uno.log.push(`${me.name} kart çekti: ${unoCardLabel(card)}.`);
+    const top = uno.discard[uno.discard.length - 1];
+    if (isUnoPlayable(card, top, uno.color, uno.hands[me.index])) {
+      playUnoCard(room, me.index, card);
+    } else {
+      uno.log.push(`${me.name} oynayamadı, sıra karşıya geçti.`);
+      maybeUnoToast(room, me.index);
+      uno.current = 1 - me.index;
+      broadcast(room);
+    }
+  });
+
+  socket.on('uno_color', ({ color } = {}) => {
+    const room = roomOf(socket);
+    const me = meOf(room, socket);
+    if (!room || !me) return;
+    if (room.mode !== 'uno' || room.phase !== 'play' || !room.uno) return;
+    const uno = room.uno;
+    if (uno.pendingColorBy !== me.index) return;
+    if (!UNO_COLORS.includes(color)) {
+      return sendError(socket, 'uno_color', 'Geçerli bir renk seç.');
+    }
+
+    const card = uno.pendingCard;
+    uno.color = color;
+    uno.pendingColorBy = null;
+    uno.pendingCard = null;
+    uno.log.push(`${me.name} rengi ${UNO_COLOR_NAMES[color]} seçti.`);
+
+    if (card) {
+      if (card.value === 'wild4') {
+        applyUnoAction(room, me.index, card);
+      } else {
+        uno.current = 1 - me.index;
+        maybeUnoToast(room, me.index);
+        broadcast(room);
+      }
+    } else {
+      uno.current = me.index;
+      broadcast(room);
+    }
+  });
+
+  socket.on('uno_restart', () => {
+    const room = roomOf(socket);
+    const me = meOf(room, socket);
+    if (!room || !me) return;
+    if (room.mode !== 'uno' || room.phase !== 'final') return;
+    startUnoGame(room);
+  });
+
   socket.on('ready_next', () => {
     const room = roomOf(socket);
     const me = meOf(room, socket);
@@ -1714,6 +2036,7 @@ io.on('connection', (socket) => {
     room.quiz = null;
     room.quizTimer = null;
     room.quizRevealTimer = null;
+    room.uno = null;
     if (room.players.length === 0) {
       rooms.delete(room.code);
       return;
