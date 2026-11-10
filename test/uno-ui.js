@@ -255,6 +255,43 @@ async function waitServer() {
     check(table.draw && table.discard, 'Deste ve açık kart görünüyor');
     check(Boolean(table.color), 'Açık renk gösteriliyor', table.color);
     check(Boolean(table.handHead), 'El başlığı var', table.handHead);
+
+    // Açılış kartı joker olursa önce rengi seç; ardından sıra bildirimini kontrol et.
+    for (const page of [host, guest, third]) {
+      const needsColor = await page.evaluate(() =>
+        Boolean(app.state?.uno?.colorChooser)
+      );
+      if (needsColor) {
+        await page.evaluate(() => {
+          document
+            .querySelector('[data-action="unoColor"][data-color="red"]')
+            ?.click();
+        });
+        await sleep(450);
+        break;
+      }
+    }
+
+    const turnBanners = await Promise.all(
+      [host, guest, third].map((page) =>
+        page.evaluate(() => ({
+          myTurn: Boolean(app.state?.uno?.myTurn),
+          banner: document.querySelector('.uno-turn-alert b')?.textContent.trim() || '',
+          fresh: document.querySelector('.uno-turn-alert')?.classList.contains('fresh') || false,
+          board: document.querySelector('.uno-board')?.classList.contains('my-turn') || false,
+        }))
+      )
+    );
+    const activeTurn = turnBanners.find((item) => item.myTurn);
+    check(turnBanners.filter((item) => item.myTurn).length === 1, 'Tek oyuncuda sıra var');
+    check(activeTurn?.banner === 'SIRA SENDE!', 'Sırası gelen oyuncuda büyük uyarı var', activeTurn);
+    check(activeTurn?.board === true, 'Sıra gelen masada vurgu var');
+    check(
+      turnBanners.filter((item) => !item.myTurn).every((item) => !item.banner),
+      'Sırası olmayanlarda büyük uyarı yok'
+    );
+    check(Boolean(activeTurn?.fresh), 'Sıra uyarısı giriş animasyonuyla geliyor');
+
     if (table.cards <= 9) {
       check(
         table.lastRight <= 390 && table.handScroll <= table.handWidth + 2,

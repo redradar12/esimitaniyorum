@@ -4669,6 +4669,85 @@ input[type="search"]:focus {
   align-self: center;
 }
 
+.uno-turn-alert {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  align-self: stretch;
+  padding: 10px 14px;
+  overflow: hidden;
+  color: #06241d;
+  text-align: center;
+  background: linear-gradient(135deg, #7dd3fc, #34d399 58%, #fbbf24);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgba(52, 211, 153, 0.2),
+    0 14px 32px -20px rgba(52, 211, 153, 0.95);
+  animation: unoTurnPulse 1.8s ease-in-out infinite;
+}
+
+.uno-turn-alert.fresh {
+  animation:
+    unoTurnIn 0.35s ease both,
+    unoTurnPulse 1.8s ease-in-out 0.35s infinite;
+}
+
+.uno-turn-alert b {
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  line-height: 1.1;
+}
+
+.uno-turn-alert small {
+  font-size: 0.65rem;
+  font-weight: 800;
+  opacity: 0.72;
+}
+
+.uno-board.my-turn .uno-hand {
+  border-radius: 18px;
+  background: radial-gradient(ellipse at 50% 100%, rgba(52, 211, 153, 0.12), transparent 68%);
+}
+
+.uno-board.my-turn .uno-draw-label {
+  color: #c4ffec;
+}
+
+.uno-board.my-turn .uno-draw-stack i {
+  border-color: rgba(52, 211, 153, 0.55);
+  box-shadow: 0 8px 22px -12px rgba(52, 211, 153, 0.9);
+}
+
+@keyframes unoTurnIn {
+  from {
+    opacity: 0.35;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes unoTurnPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(52, 211, 153, 0.2),
+      0 14px 32px -20px rgba(52, 211, 153, 0.95);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px rgba(52, 211, 153, 0.22),
+      0 18px 38px -18px rgba(52, 211, 153, 1);
+  }
+}
+
 .uno-turn-dot {
   width: 7px;
   height: 7px;

@@ -253,6 +253,64 @@ function toast(message) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
 }
 
+let turnAudioCtx = null;
+
+function unlockTurnAudio() {
+  try {
+    const AudioCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtor) return null;
+    if (!turnAudioCtx) turnAudioCtx = new AudioCtor();
+    if (turnAudioCtx.state === 'suspended') {
+      turnAudioCtx.resume().catch(() => {});
+    }
+    return turnAudioCtx;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function playTurnCue() {
+  const ctx = unlockTurnAudio();
+  if (ctx && ctx.state !== 'suspended') {
+    try {
+      const now = ctx.currentTime;
+      [880, 1318.5].forEach((frequency, index) => {
+        const start = now + index * 0.11;
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(frequency, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.1, start + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.2);
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+        oscillator.start(start);
+        oscillator.stop(start + 0.24);
+      });
+    } catch (_error) {
+      /* ses desteklenmiyorsa görsel bildirim yeterli */
+    }
+  }
+  if (navigator.vibrate) {
+    try {
+      navigator.vibrate([70, 45, 70]);
+    } catch (_error) {
+      /* yoksay */
+    }
+  }
+}
+
+function unlockTurnAudioOnce() {
+  unlockTurnAudio();
+}
+
+document.addEventListener('pointerdown', unlockTurnAudioOnce, {
+  once: true,
+  passive: true,
+});
+document.addEventListener('keydown', unlockTurnAudioOnce, { once: true });
+
 /* ------------------------------------------------------------------ */
 /*  Uygulama durumu                                                    */
 /* ------------------------------------------------------------------ */
@@ -274,6 +332,7 @@ const app = {
   homeMode: 'text',
   teamCount: 2,
   unoPlayers: 2,
+  unoMyTurn: false,
   baseUrl: location.origin,
   joinTeam: 0,
   inviteCode: '',
@@ -556,6 +615,7 @@ function goHome() {
   app.submitting = false;
   app.usedQuestions = new Set();
   app.prevState = null;
+  app.unoMyTurn = false;
   clearTimeout(app.transitionTimer);
   $('transition').hidden = true;
   $('pausedOverlay').hidden = true;
@@ -1723,6 +1783,7 @@ const UNO_COLOR_LABELS = {
 };
 
 function routeUno(s) {
+  if (s.phase !== 'play') app.unoMyTurn = false;
   if (s.phase === 'final') {
     showScreen('final');
     renderUnoFinal(s);
@@ -1796,6 +1857,10 @@ function renderUno(s) {
   const u = s.uno;
   if (!u) return;
 
+  const becameMyTurn = Boolean(u.myTurn) && !app.unoMyTurn;
+  app.unoMyTurn = Boolean(u.myTurn);
+  if (becameMyTurn) playTurnCue();
+
   const myScore = u.players.find((player) => player.isMe)?.score || 0;
   $('playTitle').textContent = 'UNO';
   $('playCounter').textContent = `${u.myCount} kart · ${myScore} p`;
@@ -1805,9 +1870,17 @@ function renderUno(s) {
     ? u.colorChooser
       ? 'Joker için renk seç'
       : `${u.currentPlayerName} renk seçiyor…`
-    : u.myTurn
-      ? 'Sıra sende'
-      : `${u.currentPlayerName} oynuyor…`;
+    : `${u.currentPlayerName} oynuyor…`;
+
+  const statusHtml = u.myTurn
+    ? `<div class="uno-turn-alert ${becameMyTurn ? 'fresh' : ''}" role="status" aria-live="assertive">
+        <b>SIRA SENDE!</b>
+        <small>Kart seç veya desteden çek</small>
+      </div>`
+    : `<div class="uno-status">
+        <span class="uno-turn-dot"></span>
+        <span>${esc(status)}</span>
+      </div>`;
 
   const hand = u.myHand
     .map((card) =>
@@ -1838,7 +1911,7 @@ function renderUno(s) {
     .join('');
 
   $('playBody').innerHTML = `
-    <div class="uno-board">
+    <div class="uno-board ${u.myTurn ? 'my-turn' : ''}">
       <div class="uno-players">${playerStrip}</div>
 
       <div class="uno-table">
@@ -1862,10 +1935,7 @@ function renderUno(s) {
         }
       </div>
 
-      <div class="uno-status">
-        <span class="uno-turn-dot ${u.myTurn ? 'mine' : ''}"></span>
-        <span>${esc(status)}</span>
-      </div>
+      ${statusHtml}
 
       ${log ? `<ul class="uno-log">${log}</ul>` : ''}
 
