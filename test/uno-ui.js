@@ -311,9 +311,13 @@ async function waitServer() {
     const colorModal = await host.evaluate(() => ({
       hidden: document.getElementById('unoColorModal').hidden,
       buttons: document.querySelectorAll('#unoColorModal [data-action="unoColor"]').length,
+      handCards: document.querySelectorAll('#unoColorHand .uno-card').length,
+      handLabel: document.getElementById('unoColorHandLabel')?.textContent || '',
     }));
     check(colorModal.hidden === false, 'Joker renk seçici açılıyor');
     check(colorModal.buttons === 4, 'Dört renk seçeneği var', colorModal.buttons);
+    check(colorModal.handCards >= 7, 'Renk seçerken el kartları görünüyor', colorModal.handCards);
+    check(colorModal.handLabel.includes('Elin'), 'Renk seçicide el başlığı var', colorModal.handLabel);
     await host.screenshot({ path: path.join(OUT, '43-uno-renk.png') });
     await host.evaluate(() => {
       app.state.uno.pendingColor = false;

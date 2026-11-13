@@ -4999,6 +4999,63 @@ input[type="search"]:focus {
   max-width: 360px;
 }
 
+.uno-color-hand-wrap {
+  margin-top: 12px;
+  padding: 9px 10px 7px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+}
+
+.uno-color-hand-label {
+  margin-bottom: 5px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--peach);
+}
+
+.uno-color-hand {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  min-height: 62px;
+  padding: 3px 2px 5px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.uno-color-hand .uno-card {
+  flex: 0 0 auto;
+  width: clamp(31px, 9.2vw, 36px);
+  border-width: 1.5px;
+  border-radius: 7px;
+  box-shadow: 0 6px 12px -8px rgba(0, 0, 0, 0.95);
+  cursor: default;
+}
+
+.uno-color-hand .uno-card::before {
+  inset: 21% 11%;
+}
+
+.uno-color-hand .uno-face {
+  font-size: 0.8rem;
+}
+
+.uno-color-hand .uno-corner {
+  top: 3px;
+  left: 3px;
+  font-size: 0.44rem;
+}
+
+.uno-color-hand .uno-corner.bottom {
+  top: auto;
+  left: auto;
+  right: 3px;
+  bottom: 3px;
+}
+
 .uno-color-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

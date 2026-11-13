@@ -1950,6 +1950,20 @@ function renderUno(s) {
     </div>
   `;
 
+  const colorHand = $('unoColorHand');
+  if (colorHand) {
+    colorHand.innerHTML = u.myHand
+      .map((card) =>
+        unoCardHtml(card, {
+          interactive: false,
+          className: 'uno-color-card',
+        })
+      )
+      .join('');
+    const colorHandLabel = $('unoColorHandLabel');
+    if (colorHandLabel) colorHandLabel.textContent = `Elin · ${u.myCount} kart`;
+  }
+
   $('unoColorModal').hidden = !u.colorChooser;
   updateVoiceUi();
 }
